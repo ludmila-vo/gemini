@@ -102,6 +102,35 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	return files
 }
 
+func ExtractCommitMessage(responseText string) string {
+	marker := "### Proposed commit message:"
+	idx := strings.Index(responseText, marker)
+	if idx == -1 {
+		return ""
+	}
+	content := responseText[idx+len(marker):]
+	lines := strings.Split(content, "\n")
+	var msgLines []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "###") {
+			break
+		}
+		msgLines = append(msgLines, line)
+	}
+	msg := strings.TrimSpace(strings.Join(msgLines, "\n"))
+	if strings.HasPrefix(msg, "```") {
+		if firstNL := strings.Index(msg, "\n"); firstNL != -1 {
+			msg = msg[firstNL+1:]
+		}
+		if strings.HasSuffix(msg, "```") {
+			msg = strings.TrimSuffix(msg, "```")
+		}
+		msg = strings.TrimSpace(msg)
+	}
+	return msg
+}
+
 func WriteFilesToDisk(baseDir string, files []ExtractedFile) error {
 	for _, file := range files {
 		// Clean and secure the target file path relative to your base directory

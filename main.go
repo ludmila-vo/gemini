@@ -113,6 +113,13 @@ func main() {
 					"[file content]\n" +
 					"```\n\n" +
 					"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### File: `path`' marker or change the backticks formatting under any circumstances.\n\n" +
+					"PROPOSED COMMIT MESSAGE RULE:\n" +
+					"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes. " +
+					"Format the commit message block exactly as follows at the end of your response:\n\n" +
+					"### Proposed commit message:\n" +
+					"```\n" +
+					"type(scope): description of changes\n" +
+					"```\n\n" +
 					codebaseContext,
 			},
 		},
@@ -190,6 +197,14 @@ func printResponse(resp *genai.GenerateContentResponse) {
 			if err != nil {
 				fmt.Printf("Critical Error saving files: %v\n", err)
 				return
+			}
+
+			if len(files) > 0 {
+				commitMsg := ExtractCommitMessage(part.Text)
+				if commitMsg != "" {
+					fmt.Println("\n### Proposed commit message:")
+					fmt.Println(commitMsg)
+				}
 			}
 		}
 	}
