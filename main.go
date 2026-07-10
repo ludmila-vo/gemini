@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -204,6 +205,14 @@ func printResponse(resp *genai.GenerateContentResponse) {
 				if commitMsg != "" {
 					fmt.Println("\n### Proposed commit message:")
 					fmt.Println(commitMsg)
+
+					cmPath := filepath.Join(*projectDir, "proposed-cm~.txt")
+					err := os.WriteFile(cmPath, []byte(commitMsg+"\n"), 0644)
+					if err != nil {
+						fmt.Printf("Warning: failed to write commit message to %s: %v\n", cmPath, err)
+					} else {
+						fmt.Printf("✓ Saved proposed commit message to: %s\n", cmPath)
+					}
 				}
 			}
 		}
