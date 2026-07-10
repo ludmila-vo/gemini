@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -64,4 +65,61 @@ func BundleProject(rootPath string) (string, error) {
 	}
 
 	return builder.String(), nil
+}
+
+type ExtractedFile struct {
+	Name    string
+	Content string
+}
+
+func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
+	var files []ExtractedFile
+
+	// Regex breakdown:
+	// ### File:\s*`([^`]+)` -> Matches '### File: `filename.go`' capturing the name inside backticks
+	// \s*```[a-zA-Z]*\n     -> Matches the opening backticks and optional language identifier (like go, json, etc)
+	// (.*?)                 -> Captures the inner content lazily (stopping at the next group)
+	// \n```                 -> Matches the final closing backticks
+	pattern := `### File:\s*` + "`([^`]+)`" + `\s*` + "```" + `[a-zA-Z]*\n([\s\S]*?)\n` + "```"
+
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllStringSubmatch(responseText, -1)
+
+	for _, match := range matches {
+		if len(match) == 3 {
+			files = append(files, ExtractedFile{
+				Name:    match[1], // Captured filename group
+				Content: match[2], // Captured inner code content group
+			})
+		}
+	}
+
+	return files
+}
+
+func WriteFilesToDisk(baseDir string, files []ExtractedFile) error {
+	for _, file := range files {
+		// Clean and secure the target file path relative to your base directory
+		targetPath := filepath.Join(baseDir, filepath.Clean(file.Name))
+
+		// 1. Extract the file's parent directory path
+		dir := filepath.Dir(targetPath)
+
+		// 2. Recursively create any missing nested folders (e.g., pkg/server/)
+		// 0755 provides read/write/execute for owner, read/execute for others
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create directory tree %s: %w", dir, err)
+		}
+
+		// 3. Write the code payload to the file
+		// 0644 provides read/write for owner, read-only for others
+		err = os.WriteFile(targetPath, []byte(file.Content), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write file %s: %w", targetPath, err)
+		}
+
+		fmt.Printf("✓ Successfully written: %s\n", targetPath)
+	}
+	return nil
 }

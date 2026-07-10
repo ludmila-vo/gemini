@@ -130,10 +130,18 @@ func main() {
 }
 
 func printResponse(resp *genai.GenerateContentResponse) {
-	for _, cand := range resp.Candidates {
+	for i, cand := range resp.Candidates {
 		if cand.Content != nil {
-			for _, part := range cand.Content.Parts {
-				fmt.Println(part)
+			for j, part := range cand.Content.Parts {
+				fmt.Println("================= candidate", i, "part", j)
+				fmt.Println(part.Text)
+
+				files := ExtractFilesFromMarkdown(part.Text)
+				err := WriteFilesToDisk(".", files)
+				if err != nil {
+					fmt.Printf("Critical Error saving files: %v\n", err)
+					return
+				}
 			}
 		}
 	}
