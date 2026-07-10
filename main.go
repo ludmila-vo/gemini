@@ -53,7 +53,7 @@ func main() {
 		return
 	}
 
-	modelName := "gemini-2.5-flash"
+	modelName := "gemini-3.5-flash"
 	prompt := *prompt
 
 	log.Println(modelName+":", prompt)
@@ -71,6 +71,7 @@ func main() {
 			log.Fatal(err)
 		}
 		fmt.Println(resp.Text())
+		printResponse(&resp)
 		return
 	}
 
@@ -83,15 +84,31 @@ func main() {
 		log.Fatal(err)
 	}
 
+	codebaseContext, err := BundleProject(".")
+	if err != nil {
+		log.Fatalf("Code bundling failed: %v", err)
+	}
+
+	systemInstruction := &genai.Content{
+		Parts: []*genai.Part{
+			{
+				Text: "You are an expert Go developer assistant.\n\n" + codebaseContext,
+			},
+		},
+	}
+
 	result, err := client.Models.GenerateContent(
 		ctx,
 		modelName,
 		genai.Text(prompt),
-		nil,
+		&genai.GenerateContentConfig{
+			SystemInstruction: systemInstruction,
+		},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println(result.Text())
 
 	buf, err = json.Marshal(result)
