@@ -132,28 +132,47 @@ func ExtractCommitMessage(responseText string) string {
 }
 
 func WriteFilesToDisk(baseDir string, files []ExtractedFile) error {
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path of base directory %s: %w", baseDir, err)
+	}
+
 	for _, file := range files {
 		// Clean and secure the target file path relative to your base directory
 		targetPath := filepath.Join(baseDir, filepath.Clean(file.Name))
 
+		absTarget, err := filepath.Abs(targetPath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve absolute path of target file %s: %w", file.Name, err)
+		}
+
+		// Security Check: Verify absolute targetPath is within absolute baseDir to prevent directory traversal
+		rel, err := filepath.Rel(absBase, absTarget)
+		if err != nil {
+			return fmt.Errorf("failed to determine relative path for %s: %w", file.Name, err)
+		}
+		if strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+			return fmt.Errorf("security violation: target path %q resolves outside the project directory %q", file.Name, baseDir)
+		}
+
 		// 1. Extract the file's parent directory path
-		dir := filepath.Dir(targetPath)
+		dir := filepath.Dir(absTarget)
 
 		// 2. Recursively create any missing nested folders (e.g., pkg/server/)
 		// 0755 provides read/write/execute for owner, read/execute for others
-		err := os.MkdirAll(dir, 0755)
+		err = os.MkdirAll(dir, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create directory tree %s: %w", dir, err)
 		}
 
 		// 3. Write the code payload to the file
 		// 0644 provides read/write for owner, read-only for others
-		err = os.WriteFile(targetPath, []byte(file.Content+"\n"), 0644)
+		err = os.WriteFile(absTarget, []byte(file.Content+"\n"), 0644)
 		if err != nil {
-			return fmt.Errorf("failed to write file %s: %w", targetPath, err)
+			return fmt.Errorf("failed to write file %s: %w", absTarget, err)
 		}
 
-		fmt.Printf("✓ Successfully written: %s\n", targetPath)
+		fmt.Printf("✓ Successfully written: %s\n", absTarget)
 	}
 	return nil
 }
