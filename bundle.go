@@ -119,7 +119,7 @@ func WriteFilesToDisk(baseDir string, files []ExtractedFile) error {
 
 		// 3. Write the code payload to the file
 		// 0644 provides read/write for owner, read-only for others
-		err = os.WriteFile(targetPath, []byte(file.Content), 0644)
+		err = os.WriteFile(targetPath, []byte(file.Content+"\n"), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write file %s: %w", targetPath, err)
 		}
