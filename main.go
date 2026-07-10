@@ -20,6 +20,7 @@ var listModels = flag.Bool("l", false, "list models")
 var prompt = flag.String("p", "", "prompt")
 var bundle = flag.Bool("b", false, "bundle all project files without sending")
 var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
+var projectDir = flag.String("d", ".", "project directory path")
 
 func main() {
 	flag.Parse()
@@ -40,7 +41,7 @@ func main() {
 	}
 
 	if *bundle {
-		projectContext, err := BundleProject(".")
+		projectContext, err := BundleProject(*projectDir)
 		if err != nil {
 			log.Fatalf("Error: %v\n", err)
 			return
@@ -87,7 +88,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	codebaseContext, err := BundleProject(".")
+	codebaseContext, err := BundleProject(*projectDir)
 	if err != nil {
 		log.Fatalf("Code bundling failed: %v", err)
 	}
@@ -154,7 +155,7 @@ func printResponse(resp *genai.GenerateContentResponse) {
 			}
 
 			files := ExtractFilesFromMarkdown(part.Text)
-			err := WriteFilesToDisk(".", files)
+			err := WriteFilesToDisk(*projectDir, files)
 			if err != nil {
 				fmt.Printf("Critical Error saving files: %v\n", err)
 				return
