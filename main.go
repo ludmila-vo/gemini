@@ -235,7 +235,15 @@ func listGeminiModels() {
 	}
 
 	for i, model := range page.Items {
-		fmt.Printf("%d %s\n    %s\n    Actions: %v\n\n", i+1, model.Name, model.Description, model.SupportedActions)
+		displayName := model.DisplayName
+		if displayName == "" {
+			displayName = "N/A"
+		}
+		fmt.Printf("%d %s (%s)\n", i+1, model.Name, displayName)
+		fmt.Printf("    Description: %s\n", model.Description)
+		fmt.Printf("    Input Token Limit:  %d\n", model.InputTokenLimit)
+		fmt.Printf("    Output Token Limit: %d\n", model.OutputTokenLimit)
+		fmt.Printf("    Supported Actions:  %v\n\n", model.SupportedActions)
 	}
 }
 
