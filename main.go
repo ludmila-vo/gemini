@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"google.golang.org/genai"
@@ -116,16 +118,38 @@ func main() {
 		},
 	}
 
-	result, err := client.Models.GenerateContent(
-		ctx,
-		modelName,
-		genai.Text(prompt),
-		&genai.GenerateContentConfig{
-			SystemInstruction: systemInstruction,
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
+	var result *genai.GenerateContentResponse
+	maxRetries := 5
+	backoff := 1 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		result, err = client.Models.GenerateContent(
+			ctx,
+			modelName,
+			genai.Text(prompt),
+			&genai.GenerateContentConfig{
+				SystemInstruction: systemInstruction,
+			},
+		)
+		if err == nil {
+			break
+		}
+
+		errStr := err.Error()
+		isUnavailable := strings.Contains(errStr, "503") || strings.Contains(strings.ToUpper(errStr), "UNAVAILABLE")
+
+		if isUnavailable && attempt < maxRetries {
+			log.Printf("Warning: API returned 503 UNAVAILABLE. Retrying in %v... (Attempt %d/%d)", backoff, attempt, maxRetries)
+			select {
+			case <-ctx.Done():
+				log.Fatal(ctx.Err())
+			case <-time.After(backoff):
+			}
+			backoff *= 2
+			continue
+		}
+
+		log.Fatalf("API call failed: %v", err)
 	}
 
 	if *verbose {
