@@ -19,6 +19,7 @@ var APIKey = ""
 var listModels = flag.Bool("l", false, "list models")
 var prompt = flag.String("p", "", "prompt")
 var bundle = flag.Bool("b", false, "bundle all project files without sending")
+var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
 
 func main() {
 	flag.Parse()
@@ -70,7 +71,9 @@ func main() {
 		if err := json.Unmarshal(buf, &resp); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(resp.Text())
+		if *verbose {
+			fmt.Println(resp.Text())
+		}
 		printResponse(&resp)
 		return
 	}
@@ -117,7 +120,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(result.Text())
+	if *verbose {
+		fmt.Println(result.Text())
+	}
 
 	buf, err = json.Marshal(result)
 	if err != nil {
@@ -141,8 +146,10 @@ func printResponse(resp *genai.GenerateContentResponse) {
 	for i, cand := range resp.Candidates {
 		if cand.Content != nil {
 			for j, part := range cand.Content.Parts {
-				fmt.Println("================= candidate", i, "part", j)
-				fmt.Println(part.Text)
+				if *verbose {
+					fmt.Println("================= candidate", i, "part", j)
+					fmt.Println(part.Text)
+				}
 
 				files := ExtractFilesFromMarkdown(part.Text)
 				err := WriteFilesToDisk(".", files)
