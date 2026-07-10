@@ -57,10 +57,10 @@ func BundleProject(rootPath string) (string, error) {
 			}
 
 			// Append structured Markdown formatting matching ExtractFilesFromMarkdown regex
-			builder.WriteString(fmt.Sprintf("### File: `%s`\n", relPath))
-			builder.WriteString("```" + strings.TrimPrefix(ext, ".") + "\n")
+			builder.WriteString(fmt.Sprintf("### "+"File: `%s`\n", relPath))
+			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
 			builder.Write(content)
-			builder.WriteString("\n```\n\n")
+			builder.WriteString("\n" + "`" + "``\n\n")
 		}
 		return nil
 	})
@@ -85,7 +85,7 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	// \s*```[a-zA-Z]*\n     -> Matches the opening backticks and optional language identifier (like go, json, etc)
 	// (.*?)                 -> Captures the inner content lazily (stopping at the next group)
 	// \n```                 -> Matches the final closing backticks
-	pattern := `### File:\s*` + "`([^`]+)`" + `\s*` + "```" + `[a-zA-Z]*\n([\s\S]*?)\n` + "```"
+	pattern := `### ` + `File:\s*` + "`([^`]+)`" + `\s*` + "``" + `` + "`[a-zA-Z]*\n([\\s\\S]*?)\n" + "``" + "`"
 
 	re := regexp.MustCompile(pattern)
 	matches := re.FindAllStringSubmatch(responseText, -1)
@@ -103,8 +103,8 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 }
 
 func ExtractCommitMessage(responseText string) string {
-	marker := "### Proposed commit message:"
-	idx := strings.Index(responseText, marker)
+	marker := "### Proposed " + "commit message:"
+	idx := strings.LastIndex(responseText, marker)
 	if idx == -1 {
 		return ""
 	}
@@ -119,12 +119,12 @@ func ExtractCommitMessage(responseText string) string {
 		msgLines = append(msgLines, line)
 	}
 	msg := strings.TrimSpace(strings.Join(msgLines, "\n"))
-	if strings.HasPrefix(msg, "```") {
+	if strings.HasPrefix(msg, "``"+"`") {
 		if firstNL := strings.Index(msg, "\n"); firstNL != -1 {
 			msg = msg[firstNL+1:]
 		}
-		if strings.HasSuffix(msg, "```") {
-			msg = strings.TrimSuffix(msg, "```")
+		if strings.HasSuffix(msg, "``"+"`") {
+			msg = strings.TrimSuffix(msg, "``"+"`")
 		}
 		msg = strings.TrimSpace(msg)
 	}

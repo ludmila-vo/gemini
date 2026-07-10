@@ -109,18 +109,18 @@ func main() {
 				Text: "You are an expert Go developer assistant.\n\n" +
 					"CRITICAL FORMATTING RULE:\n" +
 					"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
-					"### File: `path/to/file.ext`\n" +
-					"```language\n" +
+					"### " + "File: `path/to/file.ext`\n" +
+					"``" + "`language\n" +
 					"[file content]\n" +
-					"```\n\n" +
-					"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### File: `path`' marker or change the backticks formatting under any circumstances.\n\n" +
+					"``" + "`\n\n" +
+					"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### " + "File: `path`' marker or change the backticks formatting under any circumstances.\n\n" +
 					"PROPOSED COMMIT MESSAGE RULE:\n" +
 					"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes. " +
 					"Format the commit message block exactly as follows at the end of your response:\n\n" +
-					"### Proposed commit message:\n" +
-					"```\n" +
+					"### Proposed " + "commit message:\n" +
+					"``" + "`\n" +
 					"type(scope): description of changes\n" +
-					"```\n\n" +
+					"``" + "`\n\n" +
 					codebaseContext,
 			},
 		},
@@ -203,7 +203,7 @@ func printResponse(resp *genai.GenerateContentResponse) {
 			if len(files) > 0 {
 				commitMsg := ExtractCommitMessage(part.Text)
 				if commitMsg != "" {
-					fmt.Println("\n### Proposed commit message:")
+					fmt.Println("\n### Proposed " + "commit message:")
 					fmt.Println(commitMsg)
 
 					cmPath := filepath.Join(*projectDir, "proposed-cm~.txt")
