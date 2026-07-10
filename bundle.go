@@ -32,6 +32,11 @@ func BundleProject(rootPath string) (string, error) {
 			return nil
 		}
 
+		// Skip files starting with an underscore (_)
+		if strings.HasPrefix(info.Name(), "_") {
+			return nil
+		}
+
 		// Skip heavy binary files
 		ext := strings.ToLower(filepath.Ext(path))
 		if skipExts[ext] {
@@ -51,8 +56,8 @@ func BundleProject(rootPath string) (string, error) {
 				relPath = path
 			}
 
-			// Append structured Markdown formatting
-			builder.WriteString(fmt.Sprintf("## File: %s\n", relPath))
+			// Append structured Markdown formatting matching ExtractFilesFromMarkdown regex
+			builder.WriteString(fmt.Sprintf("### File: `%s`\n", relPath))
 			builder.WriteString("```" + strings.TrimPrefix(ext, ".") + "\n")
 			builder.Write(content)
 			builder.WriteString("\n```\n\n")
