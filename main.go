@@ -92,7 +92,15 @@ func main() {
 	systemInstruction := &genai.Content{
 		Parts: []*genai.Part{
 			{
-				Text: "You are an expert Go developer assistant.\n\n" + codebaseContext,
+				Text: "You are an expert Go developer assistant.\n\n" +
+					"CRITICAL FORMATTING RULE:\n" +
+					"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
+					"### File: `path/to/file.ext`\n" +
+					"```language\n" +
+					"[file content]\n" +
+					"```\n\n" +
+					"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### File: `path`' marker or change the backticks formatting under any circumstances.\n\n" +
+					codebaseContext,
 			},
 		},
 	}
