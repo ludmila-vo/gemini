@@ -144,19 +144,20 @@ func main() {
 
 func printResponse(resp *genai.GenerateContentResponse) {
 	for i, cand := range resp.Candidates {
-		if cand.Content != nil {
-			for j, part := range cand.Content.Parts {
-				if *verbose {
-					fmt.Println("================= candidate", i, "part", j)
-					fmt.Println(part.Text)
-				}
+		if cand.Content == nil {
+			continue
+		}
+		for j, part := range cand.Content.Parts {
+			if *verbose {
+				fmt.Println("================= candidate", i, "part", j)
+				fmt.Println(part.Text)
+			}
 
-				files := ExtractFilesFromMarkdown(part.Text)
-				err := WriteFilesToDisk(".", files)
-				if err != nil {
-					fmt.Printf("Critical Error saving files: %v\n", err)
-					return
-				}
+			files := ExtractFilesFromMarkdown(part.Text)
+			err := WriteFilesToDisk(".", files)
+			if err != nil {
+				fmt.Printf("Critical Error saving files: %v\n", err)
+				return
 			}
 		}
 	}
