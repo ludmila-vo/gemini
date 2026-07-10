@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 
 	"github.com/joho/godotenv"
 	"google.golang.org/genai"
@@ -21,9 +22,15 @@ var prompt = flag.String("p", "", "prompt")
 var bundle = flag.Bool("b", false, "bundle all project files without sending")
 var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
 var projectDir = flag.String("d", ".", "project directory path")
+var showVersion = flag.Bool("version", false, "print version/git revision and exit")
 
 func main() {
 	flag.Parse()
+
+	if *showVersion {
+		printVersion()
+		return
+	}
 
 	err := godotenv.Load()
 	if err != nil {
@@ -182,4 +189,30 @@ func listGeminiModels() {
 	for i, model := range page.Items {
 		fmt.Printf("%d %s\n    %s\n    Actions: %v\n\n", i+1, model.Name, model.Description, model.SupportedActions)
 	}
+}
+
+func printVersion() {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		fmt.Println("No build information available")
+		return
+	}
+	var revision string
+	var modified bool
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			modified = setting.Value == "true"
+		}
+	}
+	if revision == "" {
+		fmt.Println("Build revision unknown")
+		return
+	}
+	if modified {
+		revision += "-dirty"
+	}
+	fmt.Printf("Git revision: %s\n", revision)
 }
