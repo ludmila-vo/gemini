@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -270,30 +269,4 @@ func listGeminiModels() {
 		fmt.Printf("    Output Token Limit: %d\n", model.OutputTokenLimit)
 		fmt.Printf("    Supported Actions:  %v\n\n", model.SupportedActions)
 	}
-}
-
-func printVersion() {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		fmt.Println("No build information available")
-		return
-	}
-	var revision string
-	var modified bool
-	for _, setting := range info.Settings {
-		switch setting.Key {
-		case "vcs.revision":
-			revision = setting.Value
-		case "vcs.modified":
-			modified = setting.Value == "true"
-		}
-	}
-	if revision == "" {
-		fmt.Println("Build revision unknown")
-		return
-	}
-	if modified {
-		revision += "-dirty"
-	}
-	fmt.Printf("Git revision: %s\n", revision)
 }
