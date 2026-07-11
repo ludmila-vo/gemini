@@ -88,7 +88,7 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	// (.*?)                 -> Captures the inner content lazily (stopping at the next group)
 	// \r?\n```              -> Matches the final closing backticks
 	// (?:\r?\n### End of file:\s*`[^`]+`)? -> Matches the optional end of file marker
-	pattern := `### ` + `File:\s*` + "`([^`]+)`" + `\s*` + "``" + `` + "`[a-zA-Z]*\r?\n([\\s\\S]*?)\r?\n" + "``" + `(?:\r?\n### End of file:\s*` + "`" + `[^`]+` + "`" + `)?`
+	pattern := `### ` + `File:\s*` + "`([^`]+)`" + `\s*` + "``" + `` + "`[a-zA-Z]*\r?\n([\\s\\S]*?)\r?\n" + "``" + `(?:\r?\n### End of file:\s*` + "`" + "[^`]+" + "`" + `)?`
 
 	re := regexp.MustCompile(pattern)
 	matches := re.FindAllStringSubmatch(responseText, -1)
