@@ -9,7 +9,7 @@ import (
 )
 
 // BundleProject scans the codebase and returns a structured Markdown string for Gemini.
-func BundleProject(rootPath string) (string, error) {
+func BundleProject(rootPath string, excludes []string) (string, error) {
 	var builder strings.Builder
 
 	// Write system context header
@@ -22,6 +22,20 @@ func BundleProject(rootPath string) (string, error) {
 	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+
+		// Format the relative path nicely for markdown
+		relPath, err := filepath.Rel(rootPath, path)
+		if err != nil {
+			relPath = path
+		}
+
+		// Check custom excludes first
+		if shouldExclude(relPath, info, excludes) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 
 		// Filter out dependency and system directories
@@ -50,12 +64,6 @@ func BundleProject(rootPath string) (string, error) {
 				return nil // Skip unreadable files gracefully
 			}
 
-			// Format the relative path nicely for markdown
-			relPath, err := filepath.Rel(rootPath, path)
-			if err != nil {
-				relPath = path
-			}
-
 			// Append structured Markdown formatting matching ExtractFilesFromMarkdown regex
 			builder.WriteString(fmt.Sprintf("### "+"File: `%s`\n", relPath))
 			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
@@ -72,6 +80,35 @@ func BundleProject(rootPath string) (string, error) {
 	}
 
 	return builder.String(), nil
+}
+
+func shouldExclude(relPath string, info os.FileInfo, excludes []string) bool {
+	// Normalize path to use forward slashes for uniform matching
+	relPathNormalized := filepath.ToSlash(relPath)
+	for _, pattern := range excludes {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+		patternNormalized := filepath.ToSlash(pattern)
+
+		// Check direct match on normalized relative path
+		if matched, _ := filepath.Match(patternNormalized, relPathNormalized); matched {
+			return true
+		}
+		// Check match on filename only
+		if matched, _ := filepath.Match(patternNormalized, info.Name()); matched {
+			return true
+		}
+		// Check if any of the path segments match the pattern
+		segments := strings.Split(relPathNormalized, "/")
+		for _, seg := range segments {
+			if matched, _ := filepath.Match(patternNormalized, seg); matched {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type ExtractedFile struct {

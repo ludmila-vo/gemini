@@ -26,6 +26,21 @@ var bundle = flag.Bool("b", false, "bundle all project files without sending")
 var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
 var projectDir = flag.String("d", ".", "project directory path")
 var showVersion = flag.Bool("version", false, "print version/git revision and exit")
+var excludePatterns = flag.String("exclude", "", "comma-separated list of file/directory patterns to exclude from bundling")
+
+func parseExcludePatterns(raw string) []string {
+	var parsed []string
+	if raw == "" {
+		return parsed
+	}
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			parsed = append(parsed, p)
+		}
+	}
+	return parsed
+}
 
 func main() {
 	flag.Parse()
@@ -50,8 +65,10 @@ func main() {
 		return
 	}
 
+	parsedExcludes := parseExcludePatterns(*excludePatterns)
+
 	if *bundle {
-		projectContext, err := BundleProject(*projectDir)
+		projectContext, err := BundleProject(*projectDir, parsedExcludes)
 		if err != nil {
 			log.Fatalf("Error: %v\n", err)
 			return
@@ -98,7 +115,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	codebaseContext, err := BundleProject(*projectDir)
+	codebaseContext, err := BundleProject(*projectDir, parsedExcludes)
 	if err != nil {
 		log.Fatalf("Code bundling failed: %v", err)
 	}
