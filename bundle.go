@@ -8,9 +8,10 @@ import (
 	"strings"
 )
 
-// BundleProject scans the codebase and returns a structured Markdown string for Gemini.
-func BundleProject(rootPath string, excludes []string, includes []string) (string, error) {
+// BundleProject scans the codebase and returns a structured Markdown string for Gemini along with targeted file paths.
+func BundleProject(rootPath string, excludes []string, includes []string) (string, []string, error) {
 	var builder strings.Builder
+	var bundledFiles []string
 
 	// Write system context header
 	builder.WriteString("# PROJECT CODEBASE CONTEXT\n\n")
@@ -94,16 +95,16 @@ func BundleProject(rootPath string, excludes []string, includes []string) (strin
 			builder.Write(content)
 			builder.WriteString("\n" + "`" + "``\n")
 			builder.WriteString(fmt.Sprintf("### End of file: `%s`\n\n", relPath))
-			fmt.Printf("Bundle: %s\n", relPath)
+			bundledFiles = append(bundledFiles, relPath)
 		}
 		return nil
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to bundle codebase: %w", err)
+		return "", nil, fmt.Errorf("failed to bundle codebase: %w", err)
 	}
 
-	return builder.String(), nil
+	return builder.String(), bundledFiles, nil
 }
 
 func matchesPatterns(relPath string, info os.FileInfo, patterns []string) bool {
@@ -181,8 +182,6 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 			}
 		}
 	}
-
-	expectedFiles = []string{"README.md"}
 
 	for _, filename := range expectedFiles {
 		// Match "### File: `filename`" or "### File: filename"

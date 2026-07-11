@@ -76,12 +76,18 @@ func main() {
 	parsedIncludes := parsePatterns(*includePatterns)
 
 	if *bundle {
-		projectContext, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
+		projectContext, bundledFiles, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
 		if err != nil {
 			log.Fatalf("Error: %v\n", err)
 			return
 		}
-		fmt.Println(projectContext)
+		if *verbose {
+			fmt.Println(projectContext)
+		} else {
+			for _, file := range bundledFiles {
+				fmt.Println(file)
+			}
+		}
 		return
 	}
 
@@ -126,10 +132,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	codebaseContext, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
+	codebaseContext, bundledFiles, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
 	if err != nil {
 		log.Fatalf("Code bundling failed: %v", err)
 	}
+	log.Printf("Bundled %d files for context\n", len(bundledFiles))
 
 	systemInstruction := &genai.Content{
 		Parts: []*genai.Part{
