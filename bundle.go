@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -181,82 +182,33 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 		}
 	}
 
-	// 2. If no list of files was parsed, fallback: scan the text sequentially for any "### File:" markers
-	if len(expectedFiles) == 0 {
-		lines := strings.Split(responseText, "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "### File:") {
-				filename := strings.TrimPrefix(line, "### File:")
-				filename = strings.TrimSpace(filename)
-				filename = strings.Trim(filename, "`")
-				filename = strings.TrimSpace(filename)
-				if filename != "" {
-					expectedFiles = append(expectedFiles, filename)
-				}
-			}
-		}
-	}
+	expectedFiles = []string{"README.md"}
 
-	// Remove potential duplicates from expectedFiles
-	seen := make(map[string]bool)
-	var uniqueFiles []string
-	for _, f := range expectedFiles {
-		if !seen[f] {
-			seen[f] = true
-			uniqueFiles = append(uniqueFiles, f)
-		}
-	}
-
-	// 3. Cut files based on the expected filenames list
-	for _, filename := range uniqueFiles {
+	for _, filename := range expectedFiles {
 		// Match "### File: `filename`" or "### File: filename"
-		markerWithBackticks := fmt.Sprintf("### File: `%s`", filename)
-		markerWithoutBackticks := fmt.Sprintf("### File: %s", filename)
+		startMarker := fmt.Sprintf("### File: `%s`", filename)
+		endMarker := fmt.Sprintf("### End of file: `%s`", filename)
 
-		idx := strings.Index(responseText, markerWithBackticks)
-		if idx == -1 {
-			idx = strings.Index(responseText, markerWithoutBackticks)
-		}
-		if idx == -1 {
-			continue
+		startIdx := strings.Index(responseText, startMarker)
+		if startIdx == -1 {
+			log.Fatal("expected:", startMarker)
 		}
 
-		// Search from the start of the file block
-		contentStart := responseText[idx:]
-		lines := strings.Split(contentStart, "\n")
-
-		// Find opening code fence ```
-		fenceIdx := -1
-		for i := 1; i < len(lines); i++ {
-			trimmed := strings.TrimSpace(lines[i])
-			if strings.HasPrefix(trimmed, "```") {
-				fenceIdx = i
-				break
-			}
-		}
-		if fenceIdx == -1 {
-			continue
+		endIdx := strings.Index(responseText, endMarker)
+		if endIdx == -1 {
+			log.Fatal("expected:", endMarker)
 		}
 
-		// Accumulate lines until closing code fence ```
-		var contentLines []string
-		foundEnd := false
-		for i := fenceIdx + 1; i < len(lines); i++ {
-			trimmed := strings.TrimSpace(lines[i])
-			if trimmed == "```" {
-				foundEnd = true
-				break
-			}
-			contentLines = append(contentLines, strings.TrimSuffix(lines[i], "\r"))
-		}
+		content := responseText[startIdx+len(startMarker)+1 : endIdx]
+		content = strings.TrimSpace(content)
+		content = strings.Trim(content, "`")
+		content = strings.TrimPrefix(content, filepath.Ext(filename)[1:])
+		content = strings.TrimSpace(content)
 
-		if foundEnd {
-			files = append(files, ExtractedFile{
-				Name:    filename,
-				Content: strings.Join(contentLines, "\n"),
-			})
-		}
+		files = append(files, ExtractedFile{
+			Name:    filename,
+			Content: content,
+		})
 	}
 
 	return files
