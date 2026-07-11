@@ -60,7 +60,8 @@ func BundleProject(rootPath string) (string, error) {
 			builder.WriteString(fmt.Sprintf("### "+"File: `%s`\n", relPath))
 			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
 			builder.Write(content)
-			builder.WriteString("\n" + "`" + "``\n\n")
+			builder.WriteString("\n" + "`" + "``\n")
+			builder.WriteString(fmt.Sprintf("### End of file: `%s`\n\n", relPath))
 			fmt.Printf("Bundle: %s\n", relPath)
 		}
 		return nil
@@ -83,10 +84,11 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 
 	// Regex breakdown:
 	// ### File:\s*`([^`]+)` -> Matches '### File: `filename.go`' capturing the name inside backticks
-	// \s*```[a-zA-Z]*\n     -> Matches the opening backticks and optional language identifier (like go, json, etc)
+	// \s*```[a-zA-Z]*\r?\n  -> Matches the opening backticks and optional language identifier (like go, json, etc)
 	// (.*?)                 -> Captures the inner content lazily (stopping at the next group)
-	// \n```                 -> Matches the final closing backticks
-	pattern := `### ` + `File:\s*` + "`([^`]+)`" + `\s*` + "``" + `` + "`[a-zA-Z]*\n([\\s\\S]*?)\n" + "``" + "`"
+	// \r?\n```              -> Matches the final closing backticks
+	// (?:\r?\n### End of file:\s*`[^`]+`)? -> Matches the optional end of file marker
+	pattern := `### ` + `File:\s*` + "`([^`]+)`" + `\s*` + "``" + `` + "`[a-zA-Z]*\r?\n([\\s\\S]*?)\r?\n" + "``" + `(?:\r?\n### End of file:\s*` + "`" + `[^`]+` + "`" + `)?`
 
 	re := regexp.MustCompile(pattern)
 	matches := re.FindAllStringSubmatch(responseText, -1)
