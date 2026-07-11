@@ -8,7 +8,7 @@ import (
 )
 
 // BundleProject scans the codebase and returns a structured Markdown string for Gemini.
-func BundleProject(rootPath string, excludes []string) (string, error) {
+func BundleProject(rootPath string, excludes []string, includes []string) (string, error) {
 	var builder strings.Builder
 
 	// Write system context header
@@ -56,16 +56,40 @@ func BundleProject(rootPath string, excludes []string) (string, error) {
 			return nil
 		}
 
-		// Target Go source, modules, configuration, and documentation
-		if ext == ".go" || ext == ".mod" || ext == ".sum" || ext == ".md" || ext == ".toml" || ext == ".yaml" || ext == ".json" {
+		// If include patterns are specified, ignore any files that do not match
+		if len(includes) > 0 {
+			if !matchesPatterns(relPath, info, includes) {
+				return nil
+			}
+		}
+
+		// Target files based on patterns or default whitelist
+		isTarget := false
+		if len(includes) > 0 {
+			// Included explicitly by the user, mark as target
+			isTarget = true
+		} else {
+			// Target Go source, modules, configuration, and documentation by default
+			if ext == ".go" || ext == ".mod" || ext == ".sum" || ext == ".md" || ext == ".toml" || ext == ".yaml" || ext == ".json" {
+				isTarget = true
+			}
+		}
+
+		if isTarget {
 			content, err := os.ReadFile(path)
 			if err != nil {
 				return nil // Skip unreadable files gracefully
 			}
 
+			// Format syntax highlighter block extension
+			syntaxExt := strings.TrimPrefix(ext, ".")
+			if syntaxExt == "" {
+				syntaxExt = "text"
+			}
+
 			// Append structured Markdown formatting matching ExtractFilesFromMarkdown
 			builder.WriteString(fmt.Sprintf("### "+"File: `%s`\n", relPath))
-			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
+			builder.WriteString("`" + "``" + syntaxExt + "\n")
 			builder.Write(content)
 			builder.WriteString("\n" + "`" + "``\n")
 			builder.WriteString(fmt.Sprintf("### End of file: `%s`\n\n", relPath))
@@ -81,10 +105,10 @@ func BundleProject(rootPath string, excludes []string) (string, error) {
 	return builder.String(), nil
 }
 
-func shouldExclude(relPath string, info os.FileInfo, excludes []string) bool {
+func matchesPatterns(relPath string, info os.FileInfo, patterns []string) bool {
 	// Normalize path to use forward slashes for uniform matching
 	relPathNormalized := filepath.ToSlash(relPath)
-	for _, pattern := range excludes {
+	for _, pattern := range patterns {
 		pattern = strings.TrimSpace(pattern)
 		if pattern == "" {
 			continue
@@ -106,8 +130,16 @@ func shouldExclude(relPath string, info os.FileInfo, excludes []string) bool {
 				return true
 			}
 		}
+		// Check if prefix of relative path matches (to support directory inclusion)
+		if strings.HasPrefix(relPathNormalized, patternNormalized+"/") {
+			return true
+		}
 	}
 	return false
+}
+
+func shouldExclude(relPath string, info os.FileInfo, excludes []string) bool {
+	return matchesPatterns(relPath, info, excludes)
 }
 
 type ExtractedFile struct {

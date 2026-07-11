@@ -27,9 +27,10 @@ var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
 var projectDir = flag.String("d", ".", "project directory path")
 var showVersion = flag.Bool("version", false, "print version/git revision and exit")
 var excludePatterns = flag.String("exclude", "", "comma-separated list of file/directory patterns to exclude from bundling")
+var includePatterns = flag.String("include", "", "comma-separated list of file/directory patterns to include in bundling (ignores all other files)")
 var noCache = flag.Bool("no-cache", false, "ignore previously cached response and force fresh request")
 
-func parseExcludePatterns(raw string) []string {
+func parsePatterns(raw string) []string {
 	var parsed []string
 	if raw == "" {
 		return parsed
@@ -71,10 +72,11 @@ func main() {
 		return
 	}
 
-	parsedExcludes := parseExcludePatterns(*excludePatterns)
+	parsedExcludes := parsePatterns(*excludePatterns)
+	parsedIncludes := parsePatterns(*includePatterns)
 
 	if *bundle {
-		projectContext, err := BundleProject(*projectDir, parsedExcludes)
+		projectContext, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
 		if err != nil {
 			log.Fatalf("Error: %v\n", err)
 			return
@@ -124,7 +126,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	codebaseContext, err := BundleProject(*projectDir, parsedExcludes)
+	codebaseContext, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
 	if err != nil {
 		log.Fatalf("Code bundling failed: %v", err)
 	}
