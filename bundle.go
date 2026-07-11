@@ -61,6 +61,7 @@ func BundleProject(rootPath string) (string, error) {
 			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
 			builder.Write(content)
 			builder.WriteString("\n" + "`" + "``\n\n")
+			fmt.Printf("✓ Bundle: %s\n", relPath)
 		}
 		return nil
 	})
