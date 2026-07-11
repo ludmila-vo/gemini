@@ -5,6 +5,7 @@ A lightweight, powerful command-line tool built in Go that bundles your codebase
 ## Features
 
 - **Codebase Bundling**: Automatically walks your project directory, filters out binaries and dependency directories (`vendor`, `.git`, `node_modules`, etc.), and bundles target source files (`.go`, `.mod`, `.sum`, `.json`, `.yaml`, `.md`, etc.) into a clean Markdown representation to use as prompt context.
+- **Inclusion & Exclusion Filters**: Explicitly filter which files are bundled into the codebase context using comma-separated pattern lists (e.g., only include specific files, or exclude certain directories/tests).
 - **Smart Response Parsing**: Parses special formatting markers from the Gemini model response and automatically writes new or modified files back to your local workspace securely.
 - **Automatic Commit Messages**: Extracts proposed conventional commit messages from the response and saves them to `proposed-cm~.txt` for easy Git commits.
 - **Resilience**: Features automatic retry with exponential backoff on `503 Service Unavailable` API errors.
@@ -70,14 +71,27 @@ If you want to see exactly what context (source code files, package structures) 
 ./gemini-assistant -b
 ```
 
-### 5. List Available Gemini Models
+### 5. Bundle with Inclusion & Exclusion Filters
+Only bundle specific files (e.g. only bundle `main.go` and files inside `pkg` directory) and ignore everything else:
+
+```bash
+./gemini-assistant -include "main.go,pkg" -b
+```
+
+Or bundle the whole repository but exclude tests and markdown documentation files:
+
+```bash
+./gemini-assistant -exclude "*_test.go,*.md" -p "Optimize memory allocations"
+```
+
+### 6. List Available Gemini Models
 List all accessible models via your Gemini API key, including descriptions, input/output token limits, and supported actions:
 
 ```bash
 ./gemini-assistant -l
 ```
 
-### 6. Show Version
+### 7. Show Version
 Display current build version information and Git VCS revisions:
 
 ```bash
@@ -92,6 +106,8 @@ Display current build version information and Git VCS revisions:
 		project directory path (default ".")
 	  -exclude string
 		comma-separated list of file/directory patterns to exclude from bundling
+	  -include string
+		comma-separated list of file/directory patterns to include in bundling (ignores all other files)
 	  -l	list models
 	  -no-cache
 		ignore previously cached response and force fresh request
