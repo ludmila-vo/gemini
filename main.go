@@ -130,8 +130,8 @@ func main() {
 				Text: "You are an expert Go developer assistant.\n\n" +
 					"CRITICAL FORMATTING RULE:\n" +
 					"Include list of changed files in the format:\n" +
-					"### " + "List of changed files:" +
-					"[list of files]" +
+					"### " + "List of changed files:\n" +
+					"[list of files]\n" +
 					"### " + "End the list of changed files\n" +
 					"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
 					"### " + "File: `path/to/file.ext`\n" +
