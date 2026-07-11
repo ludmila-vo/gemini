@@ -46,6 +46,11 @@ func parseExcludePatterns(raw string) []string {
 func main() {
 	flag.Parse()
 
+	if len(os.Args) == 1 {
+		flag.Usage()
+		return
+	}
+
 	if *showVersion {
 		printVersion()
 		return
