@@ -27,6 +27,7 @@ var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
 var projectDir = flag.String("d", ".", "project directory path")
 var showVersion = flag.Bool("version", false, "print version/git revision and exit")
 var excludePatterns = flag.String("exclude", "", "comma-separated list of file/directory patterns to exclude from bundling")
+var noCache = flag.Bool("no-cache", false, "ignore previously cached response and force fresh request")
 
 func parseExcludePatterns(raw string) []string {
 	var parsed []string
@@ -92,18 +93,21 @@ func main() {
 	hashString := hex.EncodeToString(hashBytes[:])
 	fname := dir + "/" + hashString + ".json"
 
-	buf, err := os.ReadFile(fname)
-	if err == nil {
-		log.Println("cached result: ", fname)
-		var resp genai.GenerateContentResponse
-		if err := json.Unmarshal(buf, &resp); err != nil {
-			log.Fatal(err)
+	var buf []byte
+	if !*noCache {
+		buf, err = os.ReadFile(fname)
+		if err == nil {
+			log.Println("cached result: ", fname)
+			var resp genai.GenerateContentResponse
+			if err := json.Unmarshal(buf, &resp); err != nil {
+				log.Fatal(err)
+			}
+			if *verbose {
+				fmt.Println(resp.Text())
+			}
+			printResponse(&resp)
+			return
 		}
-		if *verbose {
-			fmt.Println(resp.Text())
-		}
-		printResponse(&resp)
-		return
 	}
 
 	ctx := context.Background()
@@ -125,6 +129,10 @@ func main() {
 			{
 				Text: "You are an expert Go developer assistant.\n\n" +
 					"CRITICAL FORMATTING RULE:\n" +
+					"Include list of changed files in the format:\n" +
+					"### " + "List of changed files:" +
+					"[list of files]" +
+					"### " + "End the list of changed files\n" +
 					"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
 					"### " + "File: `path/to/file.ext`\n" +
 					"``" + "`language\n" +
@@ -216,13 +224,13 @@ func printResponse(resp *genai.GenerateContentResponse) {
 			}
 
 			files := ExtractFilesFromMarkdown(part.Text)
-			err := WriteFilesToDisk(*projectDir, files)
-			if err != nil {
-				fmt.Printf("Critical Error saving files: %v\n", err)
-				sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing files: %v", err))
-				return
-			}
-
+			/*			err := WriteFilesToDisk(*projectDir, files)
+						if err != nil {
+							fmt.Printf("Critical Error saving files: %v\n", err)
+							sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing files: %v", err))
+							return
+						}
+			*/
 			for _, f := range files {
 				writtenFiles = append(writtenFiles, f.Name)
 			}
@@ -238,7 +246,7 @@ func printResponse(resp *genai.GenerateContentResponse) {
 					if err != nil {
 						fmt.Printf("Warning: failed to write commit message to %s: %v\n", cmPath, err)
 					} else {
-						fmt.Printf("✓ Saved proposed commit message to: %s\n", cmPath)
+						fmt.Printf("Saved proposed commit message to: %s\n", cmPath)
 					}
 				}
 			}

@@ -129,7 +129,7 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 		}
 		rem := strings.TrimPrefix(line, prefix)
 		rem = strings.TrimSpace(rem)
-		
+
 		// Expecting backticks: `filename`
 		if strings.HasPrefix(rem, "`") && strings.HasSuffix(rem, "`") {
 			return strings.Trim(rem, "`"), true
@@ -139,15 +139,18 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 
 	for i := 0; i < n; i++ {
 		line := strings.TrimSpace(lines[i])
-		
+		//		println("==== line:", line)
+
 		// Find opening marker
 		filename, ok := extractFilename(line, "### File:")
 		if !ok {
 			continue
 		}
+		println("==== 1", filename)
 
 		// Next line must be the opening fence
 		if i+1 >= n {
+			println("==== br", filename)
 			break
 		}
 		i++
@@ -159,13 +162,14 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 		// Find content until closing fence
 		var contentLines []string
 		foundEndFence := false
-		
+
 		for i+1 < n {
 			i++
 			curLine := lines[i]
 			trimmed := strings.TrimSpace(curLine)
 			if trimmed == "```" {
 				foundEndFence = true
+				println("==== 4", filename)
 				break
 			}
 			contentLines = append(contentLines, strings.TrimSuffix(curLine, "\r"))
@@ -189,6 +193,7 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 					// Consume the end of file marker line since it matches
 					i = nextIndex
 				}
+				println("==== 2", endLine)
 			}
 		}
 
