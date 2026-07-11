@@ -61,7 +61,7 @@ func BundleProject(rootPath string) (string, error) {
 			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
 			builder.Write(content)
 			builder.WriteString("\n" + "`" + "``\n\n")
-			fmt.Printf("✓ Bundle: %s\n", relPath)
+			fmt.Printf("Bundle: %s\n", relPath)
 		}
 		return nil
 	})
@@ -173,7 +173,7 @@ func WriteFilesToDisk(baseDir string, files []ExtractedFile) error {
 			return fmt.Errorf("failed to write file %s: %w", absTarget, err)
 		}
 
-		fmt.Printf("✓ Successfully written: %s\n", absTarget)
+		fmt.Printf("Successfully written: %s\n", absTarget)
 	}
 	return nil
 }
