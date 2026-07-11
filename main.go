@@ -224,13 +224,12 @@ func printResponse(resp *genai.GenerateContentResponse) {
 			}
 
 			files := ExtractFilesFromMarkdown(part.Text)
-			/*			err := WriteFilesToDisk(*projectDir, files)
-						if err != nil {
-							fmt.Printf("Critical Error saving files: %v\n", err)
-							sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing files: %v", err))
-							return
-						}
-			*/
+			err := WriteFilesToDisk(*projectDir, files)
+			if err != nil {
+				fmt.Printf("Critical Error saving files: %v\n", err)
+				sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing files: %v", err))
+				return
+			}
 			for _, f := range files {
 				writtenFiles = append(writtenFiles, f.Name)
 			}

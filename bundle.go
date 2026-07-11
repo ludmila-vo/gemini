@@ -116,91 +116,115 @@ type ExtractedFile struct {
 }
 
 // ExtractFilesFromMarkdown scans markdown text sequentially and extracts files matching the block structure.
-// It checks that the optional '### End of file: filename' matches the opening '### File: filename'.
+// It reads the list of changed files first, then extracts the contents for those files.
 func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	var files []ExtractedFile
-	lines := strings.Split(responseText, "\n")
-	n := len(lines)
 
-	// Helper to extract file name inside backticks
-	extractFilename := func(line, prefix string) (string, bool) {
-		if !strings.HasPrefix(line, prefix) {
-			return "", false
-		}
-		rem := strings.TrimPrefix(line, prefix)
-		rem = strings.TrimSpace(rem)
+	// 1. Extract list of expected files from "### List of changed files:" block
+	var expectedFiles []string
+	startMarker := "### List of changed files:"
+	endMarker := "### End the list of changed files"
 
-		// Expecting backticks: `filename`
-		if strings.HasPrefix(rem, "`") && strings.HasSuffix(rem, "`") {
-			return strings.Trim(rem, "`"), true
+	startIdx := strings.Index(responseText, startMarker)
+	if startIdx != -1 {
+		rest := responseText[startIdx+len(startMarker):]
+		endIdx := strings.Index(rest, endMarker)
+		if endIdx != -1 {
+			listContent := rest[:endIdx]
+			for _, line := range strings.Split(listContent, "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				// Clean list items: remove markdown bullet points and backticks
+				line = strings.TrimPrefix(line, "-")
+				line = strings.TrimPrefix(line, "*")
+				line = strings.TrimSpace(line)
+				line = strings.Trim(line, "`")
+				line = strings.TrimSpace(line)
+				if line != "" {
+					expectedFiles = append(expectedFiles, line)
+				}
+			}
 		}
-		return "", false
 	}
 
-	for i := 0; i < n; i++ {
-		line := strings.TrimSpace(lines[i])
-		//		println("==== line:", line)
+	// 2. If no list of files was parsed, fallback: scan the text sequentially for any "### File:" markers
+	if len(expectedFiles) == 0 {
+		lines := strings.Split(responseText, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "### File:") {
+				filename := strings.TrimPrefix(line, "### File:")
+				filename = strings.TrimSpace(filename)
+				filename = strings.Trim(filename, "`")
+				filename = strings.TrimSpace(filename)
+				if filename != "" {
+					expectedFiles = append(expectedFiles, filename)
+				}
+			}
+		}
+	}
 
-		// Find opening marker
-		filename, ok := extractFilename(line, "### File:")
-		if !ok {
+	// Remove potential duplicates from expectedFiles
+	seen := make(map[string]bool)
+	var uniqueFiles []string
+	for _, f := range expectedFiles {
+		if !seen[f] {
+			seen[f] = true
+			uniqueFiles = append(uniqueFiles, f)
+		}
+	}
+
+	// 3. Cut files based on the expected filenames list
+	for _, filename := range uniqueFiles {
+		// Match "### File: `filename`" or "### File: filename"
+		markerWithBackticks := fmt.Sprintf("### File: `%s`", filename)
+		markerWithoutBackticks := fmt.Sprintf("### File: %s", filename)
+
+		idx := strings.Index(responseText, markerWithBackticks)
+		if idx == -1 {
+			idx = strings.Index(responseText, markerWithoutBackticks)
+		}
+		if idx == -1 {
 			continue
 		}
-		println("==== 1", filename)
 
-		// Next line must be the opening fence
-		if i+1 >= n {
-			println("==== br", filename)
-			break
-		}
-		i++
-		openFence := strings.TrimSpace(lines[i])
-		if !strings.HasPrefix(openFence, "```") {
-			continue
-		}
+		// Search from the start of the file block
+		contentStart := responseText[idx:]
+		lines := strings.Split(contentStart, "\n")
 
-		// Find content until closing fence
-		var contentLines []string
-		foundEndFence := false
-
-		for i+1 < n {
-			i++
-			curLine := lines[i]
-			trimmed := strings.TrimSpace(curLine)
-			if trimmed == "```" {
-				foundEndFence = true
-				println("==== 4", filename)
+		// Find opening code fence ```
+		fenceIdx := -1
+		for i := 1; i < len(lines); i++ {
+			trimmed := strings.TrimSpace(lines[i])
+			if strings.HasPrefix(trimmed, "```") {
+				fenceIdx = i
 				break
 			}
-			contentLines = append(contentLines, strings.TrimSuffix(curLine, "\r"))
 		}
-
-		if !foundEndFence {
+		if fenceIdx == -1 {
 			continue
 		}
 
-		// Check next line for the optional end of file marker
-		if i+1 < n {
-			nextIndex := i + 1
-			endLine := strings.TrimSpace(lines[nextIndex])
-			if strings.HasPrefix(endLine, "### End of file:") {
-				endFilename, endOk := extractFilename(endLine, "### End of file:")
-				if endOk {
-					if endFilename != filename {
-						fmt.Printf("Warning: End of file marker filename %q does not match opening filename %q. Skipping block.\n", endFilename, filename)
-						continue
-					}
-					// Consume the end of file marker line since it matches
-					i = nextIndex
-				}
-				println("==== 2", endLine)
+		// Accumulate lines until closing code fence ```
+		var contentLines []string
+		foundEnd := false
+		for i := fenceIdx + 1; i < len(lines); i++ {
+			trimmed := strings.TrimSpace(lines[i])
+			if trimmed == "```" {
+				foundEnd = true
+				break
 			}
+			contentLines = append(contentLines, strings.TrimSuffix(lines[i], "\r"))
 		}
 
-		files = append(files, ExtractedFile{
-			Name:    filename,
-			Content: strings.Join(contentLines, "\n"),
-		})
+		if foundEnd {
+			files = append(files, ExtractedFile{
+				Name:    filename,
+				Content: strings.Join(contentLines, "\n"),
+			})
+		}
 	}
 
 	return files
