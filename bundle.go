@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -64,7 +63,7 @@ func BundleProject(rootPath string, excludes []string) (string, error) {
 				return nil // Skip unreadable files gracefully
 			}
 
-			// Append structured Markdown formatting matching ExtractFilesFromMarkdown regex
+			// Append structured Markdown formatting matching ExtractFilesFromMarkdown
 			builder.WriteString(fmt.Sprintf("### "+"File: `%s`\n", relPath))
 			builder.WriteString("`" + "``" + strings.TrimPrefix(ext, ".") + "\n")
 			builder.Write(content)
@@ -116,27 +115,87 @@ type ExtractedFile struct {
 	Content string
 }
 
+// ExtractFilesFromMarkdown scans markdown text sequentially and extracts files matching the block structure.
+// It checks that the optional '### End of file: filename' matches the opening '### File: filename'.
 func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	var files []ExtractedFile
+	lines := strings.Split(responseText, "\n")
+	n := len(lines)
 
-	// Regex breakdown:
-	// ### File:\s*`([^`]+)` -> Matches '### File: `filename.go`' capturing the name inside backticks
-	// \s*```[a-zA-Z]*\r?\n  -> Matches the opening backticks and optional language identifier (like go, json, etc)
-	// (.*?)                 -> Captures the inner content lazily (stopping at the next group)
-	// \r?\n```              -> Matches the final closing backticks
-	// (?:\r?\n### End of file:\s*`[^`]+`)? -> Matches the optional end of file marker
-	pattern := `### ` + `File:\s*` + "`([^`]+)`" + `\s*` + "``" + `` + "`[a-zA-Z]*\r?\n([\\s\\S]*?)\r?\n" + "``" + `(?:\r?\n### End of file:\s*` + "`" + "[^`]+" + "`" + `)?`
-
-	re := regexp.MustCompile(pattern)
-	matches := re.FindAllStringSubmatch(responseText, -1)
-
-	for _, match := range matches {
-		if len(match) == 3 {
-			files = append(files, ExtractedFile{
-				Name:    match[1], // Captured filename group
-				Content: match[2], // Captured inner code content group
-			})
+	// Helper to extract file name inside backticks
+	extractFilename := func(line, prefix string) (string, bool) {
+		if !strings.HasPrefix(line, prefix) {
+			return "", false
 		}
+		rem := strings.TrimPrefix(line, prefix)
+		rem = strings.TrimSpace(rem)
+		
+		// Expecting backticks: `filename`
+		if strings.HasPrefix(rem, "`") && strings.HasSuffix(rem, "`") {
+			return strings.Trim(rem, "`"), true
+		}
+		return "", false
+	}
+
+	for i := 0; i < n; i++ {
+		line := strings.TrimSpace(lines[i])
+		
+		// Find opening marker
+		filename, ok := extractFilename(line, "### File:")
+		if !ok {
+			continue
+		}
+
+		// Next line must be the opening fence
+		if i+1 >= n {
+			break
+		}
+		i++
+		openFence := strings.TrimSpace(lines[i])
+		if !strings.HasPrefix(openFence, "```") {
+			continue
+		}
+
+		// Find content until closing fence
+		var contentLines []string
+		foundEndFence := false
+		
+		for i+1 < n {
+			i++
+			curLine := lines[i]
+			trimmed := strings.TrimSpace(curLine)
+			if trimmed == "```" {
+				foundEndFence = true
+				break
+			}
+			contentLines = append(contentLines, strings.TrimSuffix(curLine, "\r"))
+		}
+
+		if !foundEndFence {
+			continue
+		}
+
+		// Check next line for the optional end of file marker
+		if i+1 < n {
+			nextIndex := i + 1
+			endLine := strings.TrimSpace(lines[nextIndex])
+			if strings.HasPrefix(endLine, "### End of file:") {
+				endFilename, endOk := extractFilename(endLine, "### End of file:")
+				if endOk {
+					if endFilename != filename {
+						fmt.Printf("Warning: End of file marker filename %q does not match opening filename %q. Skipping block.\n", endFilename, filename)
+						continue
+					}
+					// Consume the end of file marker line since it matches
+					i = nextIndex
+				}
+			}
+		}
+
+		files = append(files, ExtractedFile{
+			Name:    filename,
+			Content: strings.Join(contentLines, "\n"),
+		})
 	}
 
 	return files
