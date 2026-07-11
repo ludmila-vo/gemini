@@ -41,3 +41,5 @@ Run the tool using `go run .` or build a binary using `go build -o gemini-assist
 
 ### 1. Send a Code Generation Prompt
 Send a instruction prompt along with your entire bundled project codebase context to Gemini:
+
+	./gemini-assistant -p 'Add option to show version'
