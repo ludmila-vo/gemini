@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -150,6 +151,7 @@ func main() {
 			log.Printf("Warning: API returned 503 UNAVAILABLE. Retrying in %v... (Attempt %d/%d)", backoff, attempt, maxRetries)
 			select {
 			case <-ctx.Done():
+				sendNotification("Gemini Call Failed", ctx.Err().Error())
 				log.Fatal(ctx.Err())
 			case <-time.After(backoff):
 			}
@@ -157,6 +159,7 @@ func main() {
 			continue
 		}
 
+		sendNotification("Gemini Call Failed", err.Error())
 		log.Fatalf("API call failed: %v", err)
 	}
 
@@ -184,6 +187,7 @@ func main() {
 }
 
 func printResponse(resp *genai.GenerateContentResponse) {
+	var writtenFiles []string
 	for i, cand := range resp.Candidates {
 		if cand.Content == nil {
 			continue
@@ -198,7 +202,12 @@ func printResponse(resp *genai.GenerateContentResponse) {
 			err := WriteFilesToDisk(*projectDir, files)
 			if err != nil {
 				fmt.Printf("Critical Error saving files: %v\n", err)
+				sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing files: %v", err))
 				return
+			}
+
+			for _, f := range files {
+				writtenFiles = append(writtenFiles, f.Name)
 			}
 
 			if len(files) > 0 {
@@ -217,6 +226,21 @@ func printResponse(resp *genai.GenerateContentResponse) {
 				}
 			}
 		}
+	}
+
+	summary := "Gemini prompt completed"
+	body := "Response processed successfully."
+	if len(writtenFiles) > 0 {
+		body = fmt.Sprintf("Updated files:\n%s", strings.Join(writtenFiles, "\n"))
+	}
+	sendNotification(summary, body)
+}
+
+func sendNotification(summary, body string) {
+	cmd := exec.Command("notify-send", summary, body)
+	err := cmd.Run()
+	if err != nil && *verbose {
+		log.Printf("notify-send error: %v", err)
 	}
 }
 
