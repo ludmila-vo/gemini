@@ -84,6 +84,23 @@ Display current build version information and Git VCS revisions:
 ./gemini-assistant -version
 ```
 
+### All options
+	
+	Usage of ./gemini-assistant:
+	  -b	bundle all project files without sending
+	  -d string
+		project directory path (default ".")
+	  -exclude string
+		comma-separated list of file/directory patterns to exclude from bundling
+	  -l	list models
+	  -no-cache
+		ignore previously cached response and force fresh request
+	  -p string
+		prompt
+	  -v	verbose output (print raw response text)
+	  -version
+		print version/git revision and exit
+
 ---
 
 ## How It Works Under the Hood
