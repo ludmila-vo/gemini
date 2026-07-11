@@ -177,8 +177,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Println(len(buf), "bytes saved to", fname)
-
+	if *verbose {
+		log.Println(len(buf), "bytes saved to", fname)
+	}
 	printResponse(result)
 }
 
