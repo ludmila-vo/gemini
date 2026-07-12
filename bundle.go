@@ -153,7 +153,6 @@ type ExtractedFile struct {
 // It reads the list of changed files first, then extracts the contents for those files.
 func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	var files []ExtractedFile
-
 	// 1. Extract list of expected files from "### List of changed files:" block
 	var expectedFiles []string
 	startMarker := "### List of changed files:"
@@ -163,22 +162,23 @@ func ExtractFilesFromMarkdown(responseText string) []ExtractedFile {
 	if startIdx != -1 {
 		rest := responseText[startIdx+len(startMarker):]
 		endIdx := strings.Index(rest, endMarker)
-		if endIdx != -1 {
-			listContent := rest[:endIdx]
-			for _, line := range strings.Split(listContent, "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				// Clean list items: remove markdown bullet points and backticks
-				line = strings.TrimPrefix(line, "-")
-				line = strings.TrimPrefix(line, "*")
-				line = strings.TrimSpace(line)
-				line = strings.Trim(line, "`")
-				line = strings.TrimSpace(line)
-				if line != "" {
-					expectedFiles = append(expectedFiles, line)
-				}
+		if endIdx == -1 {
+			log.Fatalln("expected:", endMarker)
+		}
+		listContent := rest[:endIdx]
+		for _, line := range strings.Split(listContent, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			// Clean list items: remove markdown bullet points and backticks
+			line = strings.TrimPrefix(line, "-")
+			line = strings.TrimPrefix(line, "*")
+			line = strings.TrimSpace(line)
+			line = strings.Trim(line, "`")
+			line = strings.TrimSpace(line)
+			if line != "" {
+				expectedFiles = append(expectedFiles, line)
 			}
 		}
 	}

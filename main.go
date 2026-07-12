@@ -138,32 +138,35 @@ func main() {
 	}
 	log.Printf("Bundled %d files for context\n", len(bundledFiles))
 
+	text := "You are an expert Go developer assistant.\n\n" +
+		"CRITICAL FORMATTING RULE:\n" +
+		"Include list of changed files in the format:\n" +
+		"### " + "List of changed files:\n" +
+		"[list of files]\n" +
+		"### " + "End the list of changed files\n" +
+		"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
+		"### " + "File: `path/to/file.ext`\n" +
+		"``" + "`language\n" +
+		"[file content]\n" +
+		"``" + "`\n" +
+		"### " + "End of file: `path/to/file.ext`\n\n" +
+		"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### " + "File: `path`' or '### " + "End of file: `path`' markers or change the backticks formatting under any circumstances.\n\n" +
+		"PROPOSED COMMIT MESSAGE RULE:\n" +
+		"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes. " +
+		"Format the commit message block exactly as follows at the end of your response:\n\n" +
+		"### Proposed " + "commit message:\n" +
+		"``" + "`\n" +
+		"type(scope): description of changes\n" +
+		"``" + "`\n\n" +
+		codebaseContext
+
+	if *verbose {
+		fmt.Println("============================== text", text)
+		fmt.Println(text)
+	}
+
 	systemInstruction := &genai.Content{
-		Parts: []*genai.Part{
-			{
-				Text: "You are an expert Go developer assistant.\n\n" +
-					"CRITICAL FORMATTING RULE:\n" +
-					"Include list of changed files in the format:\n" +
-					"### " + "List of changed files:\n" +
-					"[list of files]\n" +
-					"### " + "End the list of changed files\n" +
-					"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
-					"### " + "File: `path/to/file.ext`\n" +
-					"``" + "`language\n" +
-					"[file content]\n" +
-					"``" + "`\n" +
-					"### " + "End of file: `path/to/file.ext`\n\n" +
-					"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### " + "File: `path`' or '### " + "End of file: `path`' markers or change the backticks formatting under any circumstances.\n\n" +
-					"PROPOSED COMMIT MESSAGE RULE:\n" +
-					"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes. " +
-					"Format the commit message block exactly as follows at the end of your response:\n\n" +
-					"### Proposed " + "commit message:\n" +
-					"``" + "`\n" +
-					"type(scope): description of changes\n" +
-					"``" + "`\n\n" +
-					codebaseContext,
-			},
-		},
+		Parts: []*genai.Part{{Text: text}},
 	}
 
 	var result *genai.GenerateContentResponse
@@ -236,7 +239,6 @@ func printResponse(resp *genai.GenerateContentResponse) {
 				fmt.Println("================= candidate", i, "part", j)
 				fmt.Println(part.Text)
 			}
-
 			files := ExtractFilesFromMarkdown(part.Text)
 			err := WriteFilesToDisk(*projectDir, files)
 			if err != nil {
