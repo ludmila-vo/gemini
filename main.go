@@ -144,6 +144,7 @@ func main() {
 		"### " + "List of changed files:\n" +
 		"[list of files]\n" +
 		"### " + "End the list of changed files\n" +
+		"MAKE SURE that End the list of changed files marker is included.\n" +
 		"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
 		"### " + "File: `path/to/file.ext`\n" +
 		"``" + "`language\n" +

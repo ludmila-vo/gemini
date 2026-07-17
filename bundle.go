@@ -39,16 +39,16 @@ func BundleProject(rootPath string, excludes []string, includes []string) (strin
 			return nil
 		}
 
-		// Filter out dependency and system directories
+		// Filter out dependency, system, and dot-prefixed directories
 		if info.IsDir() {
-			if skipDirs[info.Name()] {
+			if skipDirs[info.Name()] || (relPath != "." && strings.HasPrefix(info.Name(), ".")) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Skip files starting with an underscore (_)
-		if strings.HasPrefix(info.Name(), "_") {
+		// Skip files starting with an underscore (_) or dot (.)
+		if strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".") {
 			return nil
 		}
 
