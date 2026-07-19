@@ -264,9 +264,33 @@ func printUsage(resp *genai.GenerateContentResponse) {
 	fmt.Println("--------------------------------")
 }
 
+func isSafePath(path string) bool {
+	if filepath.IsAbs(path) {
+		return false
+	}
+	if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
+		return false
+	}
+	cleaned := filepath.Clean(path)
+	parts := strings.FieldsFunc(cleaned, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
+	for _, part := range parts {
+		if part == ".." {
+			return false
+		}
+	}
+	return true
+}
+
 func saveMultipleFilesResponse(output MultipleFilesResponse) {
 	var writtenFiles []string
 	for _, f := range output.Files {
+		if !isSafePath(f.Filename) {
+			log.Printf("Warning: skipped unsafe output path: %s", f.Filename)
+			continue
+		}
+
 		path := filepath.Join(*projectDir, f.Filename)
 
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
