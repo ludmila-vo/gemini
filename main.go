@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -44,6 +45,17 @@ func parsePatterns(raw string) []string {
 	return parsed
 }
 
+type FileResult struct {
+	Filename    string `json:"filename" description:"The name of the file with extension, e.g., main.go"`
+	CodeContent string `json:"code_content" description:"The complete, valid Go source code for this file"`
+}
+
+type MultipleFilesResponse struct {
+	Description           string       `json:"description"`
+	ProposedCommitMessage string       `json:"proposed_commit_message"`
+	Files                 []FileResult `json:"files" description:"List of generated or modified Go files"`
+}
+
 func main() {
 	flag.Parse()
 
@@ -72,24 +84,8 @@ func main() {
 		return
 	}
 
-	parsedExcludes := parsePatterns(*excludePatterns)
-	parsedIncludes := parsePatterns(*includePatterns)
-
-	if *bundle {
-		projectContext, bundledFiles, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
-		if err != nil {
-			log.Fatalf("Error: %v\n", err)
-			return
-		}
-		if *verbose {
-			fmt.Println(projectContext)
-		} else {
-			for _, file := range bundledFiles {
-				fmt.Println(file)
-			}
-		}
-		return
-	}
+	//	parsedExcludes := parsePatterns(*excludePatterns)
+	//	parsedIncludes := parsePatterns(*includePatterns)
 
 	if *prompt == "" {
 		log.Fatal("no prompt specified")
@@ -118,7 +114,7 @@ func main() {
 			if *verbose {
 				fmt.Println(resp.Text())
 			}
-			printResponse(&resp)
+			//			printResponse(&resp)
 			return
 		}
 	}
@@ -132,56 +128,78 @@ func main() {
 		log.Fatal(err)
 	}
 
-	codebaseContext, bundledFiles, err := BundleProject(*projectDir, parsedExcludes, parsedIncludes)
-	if err != nil {
-		log.Fatalf("Code bundling failed: %v", err)
-	}
-	log.Printf("Bundled %d files for context\n", len(bundledFiles))
-
-	text := "You are an expert Go developer assistant.\n\n" +
-		"CRITICAL FORMATTING RULE:\n" +
-		"Include list of changed files in the format:\n" +
-		"### " + "List of changed files:\n" +
-		"[list of files]\n" +
-		"### " + "End the list of changed files\n" +
-		"MAKE SURE that End the list of changed files marker is included.\n" +
-		"Whenever you create, modify, or output file contents in your response, you MUST always format each file using the exact block structure below:\n\n" +
-		"### " + "File: `path/to/file.ext`\n" +
-		"``" + "`language\n" +
-		"[file content]\n" +
-		"``" + "`\n" +
-		"### " + "End of file: `path/to/file.ext`\n\n" +
-		"This marker structure is strictly parsed by automation tools to save changes directly to disk. Do not omit the '### " + "File: `path`' or '### " + "End of file: `path`' markers or change the backticks formatting under any circumstances.\n\n" +
-		"PROPOSED COMMIT MESSAGE RULE:\n" +
-		"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes. " +
-		"Format the commit message block exactly as follows at the end of your response:\n\n" +
-		"### Proposed " + "commit message:\n" +
-		"``" + "`\n" +
-		"type(scope): description of changes\n" +
-		"``" + "`\n\n" +
-		codebaseContext
+	text := "You are an expert golang developer assistant.\n\n" +
+		"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes into proposed_commit_message.\n" +
+		"Format the commit message block exactly as: type(scope): description of changes\n" +
+		"Provide changes details into description." +
+		"What to do: " + prompt
 
 	if *verbose {
 		fmt.Println("============================== text", text)
 		fmt.Println(text)
 	}
 
-	systemInstruction := &genai.Content{
-		Parts: []*genai.Part{{Text: text}},
+	parts := []*genai.Part{
+		{
+			Text: text,
+		},
 	}
 
-	var result *genai.GenerateContentResponse
+	filePaths, _ := loadPathsFromListFile("list.txt")
+
+	for _, path := range filePaths {
+		fileBytes, err := os.ReadFile(path)
+		if err != nil {
+			log.Fatalf("Failed to read file %s: %v", path, err)
+		}
+
+		// Optional: Add a text header before each file to tell the model its name
+		parts = append(parts, &genai.Part{
+			Text: fmt.Sprintf("--- File: %s ---", path),
+		})
+
+		// Append the actual file content
+		parts = append(parts, &genai.Part{
+			InlineData: &genai.Blob{
+				Data:     fileBytes,
+				MIMEType: "text/x-go",
+			},
+		})
+	}
+
+	config := &genai.GenerateContentConfig{
+		ResponseMIMEType: "application/json",
+		ResponseSchema: &genai.Schema{
+			Type: genai.TypeObject,
+			Properties: map[string]*genai.Schema{
+				"description":             {},
+				"proposed_commit_message": {},
+				"files": {
+					Type: genai.TypeArray,
+					Items: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"filename":    {Type: genai.TypeString},
+							"codeContent": {Type: genai.TypeString},
+						},
+						Required: []string{"filename", "codeContent"},
+					},
+				},
+			},
+			Required: []string{"description", "files"},
+		},
+	}
+
+	var resp *genai.GenerateContentResponse
 	maxRetries := 5
 	backoff := 1 * time.Second
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		result, err = client.Models.GenerateContent(
+		resp, err = client.Models.GenerateContent(
 			ctx,
 			modelName,
 			genai.Text(prompt),
-			&genai.GenerateContentConfig{
-				SystemInstruction: systemInstruction,
-			},
+			config,
 		)
 		if err == nil {
 			break
@@ -207,10 +225,10 @@ func main() {
 	}
 
 	if *verbose {
-		fmt.Println(result.Text())
+		fmt.Println(resp.Text())
 	}
 
-	buf, err = json.Marshal(result)
+	buf, err = json.Marshal(resp)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -226,7 +244,41 @@ func main() {
 	if *verbose {
 		log.Println(len(buf), "bytes saved to", fname)
 	}
-	printResponse(result)
+
+	var output MultipleFilesResponse
+	err = json.Unmarshal([]byte(resp.Text()), &output)
+	if err != nil {
+		log.Fatalf("Failed to parse JSON response: %v\nRaw response: %s", err, resp.Text())
+	}
+
+	fmt.Printf("%+v", output)
+}
+
+// loadPathsFromListFile opens a file and extracts non-empty lines
+func loadPathsFromListFile(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var paths []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Ignore empty lines and comment lines (starting with #)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		paths = append(paths, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return paths, nil
 }
 
 func printResponse(resp *genai.GenerateContentResponse) {
