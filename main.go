@@ -28,6 +28,12 @@ var projectDir = flag.String("d", ".", "project directory path")
 var showVersion = flag.Bool("version", false, "print version/git revision and exit")
 var noCache = flag.Bool("no-cache", false, "ignore previously cached response and force fresh request")
 
+const logo = `
+╔═╗ ╔═╗ ╔╦╗ ╦ ╔╗╔ ╦  ───  ╔═╗ ╔═╗ ╔═╗ ╦ ╔═╗ ╔╦╗ ╔═╗ ╔╗╔ ╔╦╗
+║ ╦ ╠═  ║║║ ║ ║║║ ║  ───  ╠═╣ ╚═╗ ╚═╗ ║ ╚═╗  ║  ╠═╣ ║║║  ║ 
+╚═╝ ╚═╝ ╩ ╩ ╩ ╩╚╩ ╩  ───  ╩ ╩ ╚═╝ ╚═╝ ╩ ╚═╝  ╩  ╩ ╩ ╩╚╩  ╩ 
+`
+
 type FileResult struct {
 	Filename    string `json:"filename" description:"The name of the file with extension, e.g., main.go"`
 	CodeContent string `json:"codeContent" description:"The complete, valid Go source code for this file"`
@@ -39,7 +45,13 @@ type MultipleFilesResponse struct {
 	Files                 []FileResult `json:"files" description:"List of generated or modified Go files"`
 }
 
-func main() {
+func main() { 
+	flag.Usage = func() {
+		fmt.Fprint(os.Stderr, logo)
+		fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	if len(os.Args) == 1 {
@@ -346,7 +358,7 @@ func loadPathsFromListFile(path string) ([]string, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		paths = append(paths, line)
+			paths = append(paths, line)
 	}
 
 	if err := scanner.Err(); err != nil {
