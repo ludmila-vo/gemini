@@ -162,9 +162,10 @@ func main() {
 		parts = append(parts, &genai.Part{
 			InlineData: &genai.Blob{
 				Data:     fileBytes,
-				MIMEType: "text/x-go",
+				MIMEType: "text/plain",
 			},
 		})
+		log.Println("added", path)
 	}
 
 	config := &genai.GenerateContentConfig{
@@ -194,11 +195,13 @@ func main() {
 	maxRetries := 5
 	backoff := 1 * time.Second
 
+	contents := []*genai.Content{{Parts: parts}}
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		resp, err = client.Models.GenerateContent(
 			ctx,
 			modelName,
-			genai.Text(prompt),
+			contents,
 			config,
 		)
 		if err == nil {
