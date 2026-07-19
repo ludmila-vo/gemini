@@ -110,7 +110,8 @@ func main() {
 	text := "You are an expert golang developer assistant.\n\n" +
 		"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes into proposed_commit_message.\n" +
 		"Format the commit message block exactly as: type(scope): description of changes\n" +
-		"Provide changes details into description." +
+		"Provide changes details into description.\n" +
+		"golang files should end with EOL at the end of the file.\n" +
 		"What to do: " + prompt
 
 	if *verbose {
