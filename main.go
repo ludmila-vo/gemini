@@ -254,7 +254,8 @@ func main() {
 		log.Fatalf("Failed to parse JSON response: %v\nRaw response: %s", err, resp.Text())
 	}
 
-	fmt.Printf("%+v\n", output)
+	fmt.Println("description:", output.Description)
+	fmt.Println("message:", output.ProposedCommitMessage)
 	saveMultipleFilesResponse(output)
 }
 
