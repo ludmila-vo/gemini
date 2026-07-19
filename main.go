@@ -109,7 +109,8 @@ func main() {
 	}
 
 	text := "You are an expert golang developer assistant.\n\n" +
-		"If you suggest creating or modifying any files, you MUST also provide a brief, conventional commit message describing the changes into proposed_commit_message.\n" +
+		"If you suggest creating or modifying any files, you MUST also provide a brief, " +
+		"conventional commit message describing the changes into proposed_commit_message.\n" +
 		"Format the commit message block exactly as: type(scope): description of changes\n" +
 		"Provide changes details into description.\n" +
 		"golang files should end with EOL at the end of the file.\n" +
@@ -227,7 +228,7 @@ func main() {
 
 	if *verbose {
 		log.Println(len(buf), "bytes saved to", fname)
-		}
+	}
 
 	var output MultipleFilesResponse
 	err = json.Unmarshal([]byte(resp.Text()), &output)
@@ -241,7 +242,7 @@ func main() {
 	printUsage(resp)
 }
 
-func printUsage(resp *genai.GenerateContentResponse) { 
+func printUsage(resp *genai.GenerateContentResponse) {
 	if resp == nil || resp.UsageMetadata == nil {
 		return
 	}
@@ -249,7 +250,7 @@ func printUsage(resp *genai.GenerateContentResponse) {
 	candidatesTokens := resp.UsageMetadata.CandidatesTokenCount
 	totalTokens := resp.UsageMetadata.TotalTokenCount
 
-	// Est. cost based on Gemini 3.5/1.5 Flash: 
+	// Est. cost based on Gemini 3.5/1.5 Flash:
 	// Input: $0.075 / 1M tokens, Output: $0.30 / 1M tokens
 	inputCost := float64(promptTokens) * 0.075 / 1000000.0
 	outputCost := float64(candidatesTokens) * 0.30 / 1000000.0
