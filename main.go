@@ -47,7 +47,7 @@ func parsePatterns(raw string) []string {
 
 type FileResult struct {
 	Filename    string `json:"filename" description:"The name of the file with extension, e.g., main.go"`
-	CodeContent string `json:"code_content" description:"The complete, valid Go source code for this file"`
+	CodeContent string `json:"codeContent" description:"The complete, valid Go source code for this file"`
 }
 
 type MultipleFilesResponse struct {
@@ -254,7 +254,49 @@ func main() {
 		log.Fatalf("Failed to parse JSON response: %v\nRaw response: %s", err, resp.Text())
 	}
 
-	fmt.Printf("%+v", output)
+	fmt.Printf("%+v\n", output)
+	saveMultipleFilesResponse(output)
+}
+
+func saveMultipleFilesResponse(output MultipleFilesResponse) {
+	var writtenFiles []string
+	for _, f := range output.Files {
+		path := filepath.Join(*projectDir, f.Filename)
+
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			log.Printf("Warning: failed to create directory for %s: %v", path, err)
+			continue
+		}
+
+		err := os.WriteFile(path, []byte(f.CodeContent), 0644)
+		if err != nil {
+			log.Printf("Error writing file %s: %v", path, err)
+			sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing file %s: %v", path, err))
+			continue
+		}
+		log.Printf("Saved file: %s", path)
+		writtenFiles = append(writtenFiles, f.Filename)
+	}
+
+	if output.ProposedCommitMessage != "" {
+		fmt.Println("\n### Proposed commit message:")
+		fmt.Println(output.ProposedCommitMessage)
+
+		cmPath := filepath.Join(*projectDir, "proposed-cm~.txt")
+		err := os.WriteFile(cmPath, []byte(output.ProposedCommitMessage+"\n"), 0644)
+		if err != nil {
+			log.Printf("Warning: failed to write commit message to %s: %v", cmPath, err)
+		} else {
+			log.Printf("Saved proposed commit message to: %s", cmPath)
+		}
+	}
+
+	summary := "Gemini prompt completed"
+	body := "Response processed successfully."
+	if len(writtenFiles) > 0 {
+		body = fmt.Sprintf("Updated files:\n%s", strings.Join(writtenFiles, "\n"))
+	}
+	sendNotification(summary, body)
 }
 
 // loadPathsFromListFile opens a file and extracts non-empty lines
