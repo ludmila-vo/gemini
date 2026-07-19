@@ -23,27 +23,10 @@ var APIKey = ""
 
 var listModels = flag.Bool("l", false, "list models")
 var prompt = flag.String("p", "", "prompt")
-var bundle = flag.Bool("b", false, "bundle all project files without sending")
 var verbose = flag.Bool("v", false, "verbose output (print raw response text)")
 var projectDir = flag.String("d", ".", "project directory path")
 var showVersion = flag.Bool("version", false, "print version/git revision and exit")
-var excludePatterns = flag.String("exclude", "", "comma-separated list of file/directory patterns to exclude from bundling")
-var includePatterns = flag.String("include", "", "comma-separated list of file/directory patterns to include in bundling (ignores all other files)")
 var noCache = flag.Bool("no-cache", false, "ignore previously cached response and force fresh request")
-
-func parsePatterns(raw string) []string {
-	var parsed []string
-	if raw == "" {
-		return parsed
-	}
-	for _, p := range strings.Split(raw, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			parsed = append(parsed, p)
-		}
-	}
-	return parsed
-}
 
 type FileResult struct {
 	Filename    string `json:"filename" description:"The name of the file with extension, e.g., main.go"`
@@ -84,9 +67,6 @@ func main() {
 		return
 	}
 
-	//	parsedExcludes := parsePatterns(*excludePatterns)
-	//	parsedIncludes := parsePatterns(*includePatterns)
-
 	if *prompt == "" {
 		log.Fatal("no prompt specified")
 		return
@@ -114,7 +94,6 @@ func main() {
 			if *verbose {
 				fmt.Println(resp.Text())
 			}
-			//			printResponse(&resp)
 			return
 		}
 	}
@@ -325,54 +304,6 @@ func loadPathsFromListFile(path string) ([]string, error) {
 	}
 
 	return paths, nil
-}
-
-func printResponse(resp *genai.GenerateContentResponse) {
-	var writtenFiles []string
-	for i, cand := range resp.Candidates {
-		if cand.Content == nil {
-			continue
-		}
-		for j, part := range cand.Content.Parts {
-			if *verbose {
-				fmt.Println("================= candidate", i, "part", j)
-				fmt.Println(part.Text)
-			}
-			files := ExtractFilesFromMarkdown(part.Text)
-			err := WriteFilesToDisk(*projectDir, files)
-			if err != nil {
-				fmt.Printf("Critical Error saving files: %v\n", err)
-				sendNotification("Gemini Task Failed", fmt.Sprintf("Error writing files: %v", err))
-				return
-			}
-			for _, f := range files {
-				writtenFiles = append(writtenFiles, f.Name)
-			}
-
-			if len(files) > 0 {
-				commitMsg := ExtractCommitMessage(part.Text)
-				if commitMsg != "" {
-					fmt.Println("\n### Proposed " + "commit message:")
-					fmt.Println(commitMsg)
-
-					cmPath := filepath.Join(*projectDir, "proposed-cm~.txt")
-					err := os.WriteFile(cmPath, []byte(commitMsg+"\n"), 0644)
-					if err != nil {
-						fmt.Printf("Warning: failed to write commit message to %s: %v\n", cmPath, err)
-					} else {
-						fmt.Printf("Saved proposed commit message to: %s\n", cmPath)
-					}
-				}
-			}
-		}
-	}
-
-	summary := "Gemini prompt completed"
-	body := "Response processed successfully."
-	if len(writtenFiles) > 0 {
-		body = fmt.Sprintf("Updated files:\n%s", strings.Join(writtenFiles, "\n"))
-	}
-	sendNotification(summary, body)
 }
 
 func sendNotification(summary, body string) {
