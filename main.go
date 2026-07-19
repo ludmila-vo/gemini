@@ -94,6 +94,7 @@ func main() {
 			if *verbose {
 				fmt.Println(resp.Text())
 			}
+			printUsage(&resp)
 			return
 		}
 	}
@@ -226,7 +227,7 @@ func main() {
 
 	if *verbose {
 		log.Println(len(buf), "bytes saved to", fname)
-	}
+		}
 
 	var output MultipleFilesResponse
 	err = json.Unmarshal([]byte(resp.Text()), &output)
@@ -237,6 +238,29 @@ func main() {
 	fmt.Println("description:", output.Description)
 	fmt.Println("message:", output.ProposedCommitMessage)
 	saveMultipleFilesResponse(output)
+	printUsage(resp)
+}
+
+func printUsage(resp *genai.GenerateContentResponse) { 
+	if resp == nil || resp.UsageMetadata == nil {
+		return
+	}
+	promptTokens := resp.UsageMetadata.PromptTokenCount
+	candidatesTokens := resp.UsageMetadata.CandidatesTokenCount
+	totalTokens := resp.UsageMetadata.TotalTokenCount
+
+	// Est. cost based on Gemini 3.5/1.5 Flash: 
+	// Input: $0.075 / 1M tokens, Output: $0.30 / 1M tokens
+	inputCost := float64(promptTokens) * 0.075 / 1000000.0
+	outputCost := float64(candidatesTokens) * 0.30 / 1000000.0
+	totalCost := inputCost + outputCost
+
+	fmt.Println("\n--- Usage & Cost Estimation ---")
+	fmt.Printf("Prompt Tokens:     %d\n", promptTokens)
+	fmt.Printf("Candidate Tokens:  %d\n", candidatesTokens)
+	fmt.Printf("Total Tokens:      %d\n", totalTokens)
+	fmt.Printf("Estimated Cost:    $%0.6f\n", totalCost)
+	fmt.Println("--------------------------------")
 }
 
 func saveMultipleFilesResponse(output MultipleFilesResponse) {
