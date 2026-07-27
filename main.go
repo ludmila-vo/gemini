@@ -46,7 +46,7 @@ type MultipleFilesResponse struct {
 }
 
 func main() { 
-	flag.Usage = func() {
+	flag.Usage = func() { 
 		fmt.Fprint(os.Stderr, logo)
 		fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
 		flag.PrintDefaults()
@@ -66,12 +66,16 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Warning: No .env file found, falling back to system env")
+		log.Println("Warning: No .env file found, falling back to other sources")
 	}
 
 	APIKey = os.Getenv("GEMINI_API_KEY")
 	if APIKey == "" {
-		log.Fatal("Critical: GEMINI_API_KEY is not set in the environment or .env file")
+		APIKey = getAPIKeyFromConfig()
+	}
+
+	if APIKey == "" {
+		log.Fatal("Critical: GEMINI_API_KEY is not set in the environment, .env file, or ~/.config/gemini-assistant/config")
 	}
 
 	if *listModels {
@@ -254,6 +258,38 @@ func main() {
 	printUsage(resp)
 }
 
+func getAPIKeyFromConfig() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	configPath := filepath.Join(home, ".config", "gemini-assistant", "config")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return ""
+	}
+	content := strings.TrimSpace(string(data))
+	if content == "" {
+		return ""
+	}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "GEMINI_API_KEY=") {
+			val := strings.TrimPrefix(line, "GEMINI_API_KEY=")
+			val = strings.Trim(strings.TrimSpace(val), `"'`)
+			return val
+		}
+	}
+
+	if len(lines) == 1 && !strings.Contains(content, "=") {
+		return strings.Trim(content, `"'`)
+	}
+
+	return ""
+}
+
 func printUsage(resp *genai.GenerateContentResponse) {
 	if resp == nil || resp.UsageMetadata == nil {
 		return
@@ -351,7 +387,7 @@ func loadPathsFromListFile(path string) ([]string, error) {
 
 	var paths []string
 	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
+	for scanner.Scan() { 
 		line := strings.TrimSpace(scanner.Text())
 
 		// Ignore empty lines and comment lines (starting with #)
