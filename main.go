@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
 	"google.golang.org/genai"
 )
 
@@ -45,8 +44,8 @@ type MultipleFilesResponse struct {
 	Files                 []FileResult `json:"files" description:"List of generated or modified Go files"`
 }
 
-func main() { 
-	flag.Usage = func() { 
+func main() {
+	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, logo)
 		fmt.Fprintf(os.Stderr, "\nUsage of %s:\n", os.Args[0])
 		flag.PrintDefaults()
@@ -64,18 +63,30 @@ func main() {
 		return
 	}
 
-	err := godotenv.Load()
+	configPath, err := getConfigPath()
 	if err != nil {
-		log.Println("Warning: No .env file found, falling back to other sources")
+		log.Fatalf("Error determining config path: %v", err)
+	}
+	fmt.Printf("Config file: %s\n", configPath)
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+			log.Fatalf("Error creating config directory: %v", err)
+		}
+		defaultContent := "GEMINI_API_KEY=\n"
+		if err := os.WriteFile(configPath, []byte(defaultContent), 0600); err != nil {
+			log.Fatalf("Error writing default config file: %v", err)
+		}
+		log.Printf("Created template config file at %s", configPath)
 	}
 
-	APIKey = os.Getenv("GEMINI_API_KEY")
-	if APIKey == "" {
-		APIKey = getAPIKeyFromConfig()
+	APIKey, err = getAPIKeyFromConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error reading config: %v", err)
 	}
 
 	if APIKey == "" {
-		log.Fatal("Critical: GEMINI_API_KEY is not set in the environment, .env file, or ~/.config/gemini-assistant/config")
+		log.Fatalf("GEMINI_API_KEY is empty. Please configure it in %s", configPath)
 	}
 
 	if *listModels {
@@ -258,19 +269,22 @@ func main() {
 	printUsage(resp)
 }
 
-func getAPIKeyFromConfig() string {
+func getConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	configPath := filepath.Join(home, ".config", "gemini-assistant", "config")
+	return filepath.Join(home, ".config", "gemini-assistant", "config"), nil
+}
+
+func getAPIKeyFromConfig(configPath string) (string, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	content := strings.TrimSpace(string(data))
 	if content == "" {
-		return ""
+		return "", nil
 	}
 
 	lines := strings.Split(content, "\n")
@@ -279,15 +293,15 @@ func getAPIKeyFromConfig() string {
 		if strings.HasPrefix(line, "GEMINI_API_KEY=") {
 			val := strings.TrimPrefix(line, "GEMINI_API_KEY=")
 			val = strings.Trim(strings.TrimSpace(val), `"'`)
-			return val
+			return val, nil
 		}
 	}
 
 	if len(lines) == 1 && !strings.Contains(content, "=") {
-		return strings.Trim(content, `"'`)
+		return strings.Trim(content, `"'`), nil
 	}
 
-	return ""
+	return "", nil
 }
 
 func printUsage(resp *genai.GenerateContentResponse) {
@@ -387,14 +401,14 @@ func loadPathsFromListFile(path string) ([]string, error) {
 
 	var paths []string
 	scanner := bufio.NewScanner(file)
-	for scanner.Scan() { 
+	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
 		// Ignore empty lines and comment lines (starting with #)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-			paths = append(paths, line)
+		paths = append(paths, line)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -432,10 +446,10 @@ func listGeminiModels() {
 		if displayName == "" {
 			displayName = "N/A"
 		}
-		fmt.Printf("%d %s (%s)\n", i+1, model.Name, displayName)
-		fmt.Printf("    Description: %s\n", model.Description)
-		fmt.Printf("    Input Token Limit:  %d\n", model.InputTokenLimit)
-		fmt.Printf("    Output Token Limit: %d\n", model.OutputTokenLimit)
-		fmt.Printf("    Supported Actions:  %v\n\n", model.SupportedActions)
+			fmt.Printf("%d %s (%s)\n", i+1, model.Name, displayName)
+			fmt.Printf("    Description: %s\n", model.Description)
+			fmt.Printf("    Input Token Limit:  %d\n", model.InputTokenLimit)
+			fmt.Printf("    Output Token Limit: %d\n", model.OutputTokenLimit)
+			fmt.Printf("    Supported Actions:  %v\n\n", model.SupportedActions)
 	}
 }
