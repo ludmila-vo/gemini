@@ -446,10 +446,10 @@ func listGeminiModels() {
 		if displayName == "" {
 			displayName = "N/A"
 		}
-			fmt.Printf("%d %s (%s)\n", i+1, model.Name, displayName)
-			fmt.Printf("    Description: %s\n", model.Description)
-			fmt.Printf("    Input Token Limit:  %d\n", model.InputTokenLimit)
-			fmt.Printf("    Output Token Limit: %d\n", model.OutputTokenLimit)
-			fmt.Printf("    Supported Actions:  %v\n\n", model.SupportedActions)
+		fmt.Printf("%d %s (%s)\n", i+1, model.Name, displayName)
+		fmt.Printf("    Description: %s\n", model.Description)
+		fmt.Printf("    Input Token Limit:  %d\n", model.InputTokenLimit)
+		fmt.Printf("    Output Token Limit: %d\n", model.OutputTokenLimit)
+		fmt.Printf("    Supported Actions:  %v\n\n", model.SupportedActions)
 	}
 }

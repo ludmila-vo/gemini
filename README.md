@@ -24,11 +24,12 @@ A lightweight, powerful command-line tool built in Go that interacts with the Go
 ### Setup
 
 1. Clone or copy this repository to your system.
-2. Build the executable:
+2. Install the executable globally:
    ```bash
-   go build -o gemini-assistant .
+   go install .
    ```
-3. Run the tool once or manually create the config file at `~/.config/gemini-assistant/config`:
+   *(Ensure your `$GOPATH/bin` or `$GOBIN` is in your system's `PATH` to run `gemini` from anywhere)*.
+3. Run the tool once or manually create the config file at `~/.config/gemini/config`:
    ```env
    GEMINI_API_KEY=your_actual_gemini_api_key_here
    ```
@@ -50,48 +51,48 @@ version.go
 Send an instruction prompt along with your selected files context. This will automatically update your project files and suggest a conventional Git commit message:
 
 ```bash
-./gemini-assistant -p "Add a new helper function to format dates"
+gemini -p "Add a new helper function to format dates"
 ```
 
 ### 3. Run in Verbose Mode
 Use the `-v` flag to output additional details, including the raw response text and caching details:
 
 ```bash
-./gemini-assistant -v -p "Explain the current structure of main.go"
+gemini -v -p "Explain the current structure of main.go"
 ```
 
 ### 4. Custom Project Directory
 By default, the assistant works within the current directory (`.`). You can specify a different project directory using the `-d` flag:
 
 ```bash
-./gemini-assistant -d "/path/to/my/project" -p "Refactor the routing package"
+gemini -d "/path/to/my/project" -p "Refactor the routing package"
 ```
 
 ### 5. Bypass Cache
 Force a fresh request to the Gemini API, bypassing any previously cached responses:
 
 ```bash
-./gemini-assistant -no-cache -p "Optimize main.go"
+gemini -no-cache -p "Optimize main.go"
 ```
 
 ### 6. List Available Gemini Models
 List all accessible models via your Gemini API key, including descriptions, input/output token limits, and supported actions:
 
 ```bash
-./gemini-assistant -l
+gemini -l
 ```
 
 ### 7. Show Version
 Display current build version information and Git VCS revisions:
 
 ```bash
-./gemini-assistant -version
+gemini -version
 ```
 
 ### All CLI Options
 
 ```text
-Usage of ./gemini-assistant:
+Usage of gemini:
   -d string
         project directory path (default ".")
   -l    list models
