@@ -1,12 +1,11 @@
-# Gemini Code Assistant & Bundler
+# Gemini Code Assistant
 
-A lightweight, powerful command-line tool built in Go that bundles your codebase context and interacts with the Google Gemini API (`gemini-3.5-flash`) to generate, modify, and automatically apply file changes directly back to your project.
+A lightweight, powerful command-line tool built in Go that interacts with the Google Gemini API (`gemini-3.5-flash`) to generate, modify, and automatically apply file changes directly back to your project based on files listed in `list.txt`.
 
 ## Features
 
-- **Codebase Bundling**: Automatically walks your project directory, filters out binaries and dependency directories (`vendor`, `.git`, `node_modules`, etc.), and bundles target source files (`.go`, `.mod`, `.sum`, `.json`, `.yaml`, `.md`, etc.) into a clean Markdown representation to use as prompt context.
-- **Inclusion & Exclusion Filters**: Explicitly filter which files are bundled into the codebase context using comma-separated pattern lists (e.g., only include specific files, or exclude certain directories/tests).
-- **Smart Response Parsing**: Parses special formatting markers from the Gemini model response and automatically writes new or modified files back to your local workspace securely.
+- **Selected File Context**: Instead of auto-bundling everything, specify exactly which files to send to the Gemini model in a simple `list.txt` file.
+- **Smart Response Parsing**: Uses structured JSON output from Gemini to automatically write new or modified files back to your local workspace securely.
 - **Automatic Commit Messages**: Extracts proposed conventional commit messages from the response and saves them to `proposed-cm~.txt` for easy Git commits.
 - **Resilience**: Features automatic retry with exponential backoff on `503 Service Unavailable` API errors.
 - **Response Caching**: Caches raw API responses in `~/.cache/airesponses/gemini-3.5-flash/` to avoid redundant API billing and speeds up repeated queries.
@@ -18,18 +17,18 @@ A lightweight, powerful command-line tool built in Go that bundles your codebase
 
 ### Prerequisites
 
-- **Go**: Version 1.26 or later.
+- **Go**: Version 1.20 or later.
 - **Gemini API Key**: Get an API key from Google AI Studio.
 - **notify-send** (Optional): Standard on most Linux distributions for desktop notifications.
 
 ### Setup
 
 1. Clone or copy this repository to your system.
-2. Initialize and download dependencies:
+2. Build the executable:
    ```bash
-   go mod download
+   go build -o gemini-assistant .
    ```
-3. Create a `.env` file in the root directory (or set it in your environment shell):
+3. Run the tool once or manually create the config file at `~/.config/gemini-assistant/config`:
    ```env
    GEMINI_API_KEY=your_actual_gemini_api_key_here
    ```
@@ -38,50 +37,41 @@ A lightweight, powerful command-line tool built in Go that bundles your codebase
 
 ## Usage Instructions
 
-First, build the executable (optional but recommended for convenient CLI use):
-```bash
-go build -o gemini-assistant .
+### 1. Define files to include in context
+Create a file named `list.txt` in your execution directory. List the files you want to pass as context (one per line). Empty lines and lines starting with `#` are ignored:
+
+```text
+# Context files for Gemini
+main.go
+version.go
 ```
 
-### 1. Send a Code Generation or Modification Prompt
-Send an instruction prompt along with your entire bundled codebase context directly to Gemini. This will automatically update your project files and suggest a conventional Git commit message:
+### 2. Send a Code Generation or Modification Prompt
+Send an instruction prompt along with your selected files context. This will automatically update your project files and suggest a conventional Git commit message:
 
 ```bash
-./gemini-assistant -p "Add a new helper function in utility.go to reverse strings"
+./gemini-assistant -p "Add a new helper function to format dates"
 ```
 
-### 2. Run in Verbose Mode
-Use the `-v` flag to output additional details, including the raw text response received from the Gemini API and caching metrics:
+### 3. Run in Verbose Mode
+Use the `-v` flag to output additional details, including the raw response text and caching details:
 
 ```bash
-./gemini-assistant -v -p "Explain how main.go is structured"
+./gemini-assistant -v -p "Explain the current structure of main.go"
 ```
 
-### 3. Specify a Custom Project Directory
-By default, the assistant scans and works within the current directory (`.`). To point it to a different project or a subdirectory, use the `-d` flag:
+### 4. Custom Project Directory
+By default, the assistant works within the current directory (`.`). You can specify a different project directory using the `-d` flag:
 
 ```bash
-./gemini-assistant -d "/path/to/my/go-project" -p "Refactor the routing package"
+./gemini-assistant -d "/path/to/my/project" -p "Refactor the routing package"
 ```
 
-### 4. Codebase Context Bundler (Dry-Run)
-If you want to see exactly what context (source code files, package structures) will be bundled and sent to the Gemini API, use the `-b` flag. This prints the Markdown representation of your repository directly to standard output and **does not** send any requests to the Gemini API:
+### 5. Bypass Cache
+Force a fresh request to the Gemini API, bypassing any previously cached responses:
 
 ```bash
-./gemini-assistant -b
-```
-
-### 5. Bundle with Inclusion & Exclusion Filters
-Only bundle specific files (e.g. only bundle `main.go` and files inside `pkg` directory) and ignore everything else:
-
-```bash
-./gemini-assistant -include "main.go,pkg" -b
-```
-
-Or bundle the whole repository but exclude tests and markdown documentation files:
-
-```bash
-./gemini-assistant -exclude "*_test.go,*.md" -p "Optimize memory allocations"
+./gemini-assistant -no-cache -p "Optimize main.go"
 ```
 
 ### 6. List Available Gemini Models
@@ -98,35 +88,31 @@ Display current build version information and Git VCS revisions:
 ./gemini-assistant -version
 ```
 
-### All options
-	
-	Usage of ./gemini-assistant:
-	  -b	bundle all project files without sending
-	  -d string
-		project directory path (default ".")
-	  -exclude string
-		comma-separated list of file/directory patterns to exclude from bundling
-	  -include string
-		comma-separated list of file/directory patterns to include in bundling (ignores all other files)
-	  -l	list models
-	  -no-cache
-		ignore previously cached response and force fresh request
-	  -p string
-		prompt
-	  -v	verbose output (print raw response text)
-	  -version
-		print version/git revision and exit
+### All CLI Options
+
+```text
+Usage of ./gemini-assistant:
+  -d string
+        project directory path (default ".")
+  -l    list models
+  -no-cache
+        ignore previously cached response and force fresh request
+  -p string
+        prompt
+  -v    verbose output (print raw response text)
+  -version
+        print version/git revision and exit
+```
 
 ---
 
 ## How It Works Under the Hood
 
-1. **Context Collection**: The assistant scans your local directory, skipping files and directories defined in `bundle.go` (e.g., `.git`, `node_modules`, `vendor`).
-2. **Context Compression**: Found text-based source files are packaged into a structured Markdown string containing path declarations and fenced code blocks.
-3. **API Dispatch**: The system prompt instructs Gemini to output code changes using strict `### File: path/to/file` blocks.
-4. **File Application**: Upon receiving a response, the assistant automatically parses out modified files and writes them directly back to your project directory.
-5. **Git Commit Suggestion**: If the AI proposed a conventional commit message, it's saved locally into `proposed-cm~.txt`. You can quickly commit with:
+1. **Context Collection**: The assistant reads files listed in `list.txt` from your local directory.
+2. **API Dispatch**: The prompt and file contents are sent to the Gemini API with instructions to return a structured JSON response containing the file changes.
+3. **File Application**: Upon receiving a response, the assistant automatically parses the JSON and writes new or modified files directly back to your project workspace.
+4. **Git Commit Suggestion**: If the AI proposed a conventional commit message, it's saved locally into `proposed-cm~.txt`. You can commit with:
    ```bash
    git commit -F proposed-cm~.txt
    ```
-6. **Smart Caching**: Every unique prompt hashes to a cache file inside `~/.cache/airesponses/gemini-3.5-flash/`. Sending the exact same prompt again reads directly from this cache instantaneously, saving your API quota.
+5. **Smart Caching**: Every unique prompt hashes to a cache file inside `~/.cache/airesponses/gemini-3.5-flash/`. Sending the exact same prompt again reads directly from this cache.
